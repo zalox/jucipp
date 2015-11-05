@@ -1,10 +1,8 @@
 cmake_minimum_required (VERSION 2.8.4)
 
-set(project_name juci)
-#set(module juci_to_python_api)
+set(application_name "juci")
+set(python_module "jucipy")
 
-#set(lib_install_path "/usr/local/lib/python2.7/dist-packages/")
-
-project (${project_name})
+project (${application_name})
 
 add_subdirectory("src")

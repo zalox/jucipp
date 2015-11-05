@@ -25,53 +25,71 @@ if(MSYS)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DJUCI_CMAKE_INSTALL_PREFIX=\\\"${CMAKE_INSTALL_PREFIX}\\\"")
 endif()
 
-INCLUDE(FindPkgConfig)
-
 find_package(LibClang REQUIRED)
+find_package(Boost 1.55 COMPONENTS thread log python system filesystem REQUIRED)
+find_package(ASPELL REQUIRED)
+include(FindPythonLibs)
+set(PYBIND11_INCLUDE_DIR "../pybind11/include")
+set(LIBCLANGMM_INCLUDE_DIR ../libclangmm/src)
 
-#find_package(PythonLibs 2.7)
-
-#find_package(Boost 1.55 COMPONENTS python thread log system filesystem REQUIRED)
-find_package(Boost 1.55 COMPONENTS thread log system filesystem REQUIRED)
-
-pkg_check_modules(GTKMM gtkmm-3.0 REQUIRED) # The name GTKMM is set here for the variables abouve
-
+include(FindPkgConfig)
+pkg_check_modules(GTKMM gtkmm-3.0 REQUIRED)
 pkg_check_modules(GTKSVMM gtksourceviewmm-3.0 REQUIRED)
 
-find_package(ASPELL REQUIRED)
+set(global_includes
+   ${Boost_INCLUDE_DIRS}
+   ${GTKMM_INCLUDE_DIRS}
+   ${GTKSVMM_INCLUDE_DIRS}
+   ${LIBCLANG_INCLUDE_DIRS}
+   ${LIBCLANGMM_INCLUDE_DIR}
+   ${ASPELL_INCLUDE_DIR}
+   ${PYTHON_INCLUDE_DIRS}
+)
 
-set(source_files juci.h
-    juci.cc	
-    menu.h
-    menu.cc
-    source.h
-    source.cc
-    source_clang.h
-    source_clang.cc
-    selectiondialog.h
-    selectiondialog.cc
-    config.h
+set(global_libraries
+  ${LIBCLANG_LIBRARIES}
+  ${GTKMM_LIBRARIES}
+  ${GTKSVMM_LIBRARIES}
+  ${Boost_LIBRARIES}
+  ${ASPELL_LIBRARIES}
+  ${PYTHON_LIBRARIES}
+)
+
+set(application_files
+    api.cc
+    api.h
+    python_api.cc
+    cmake.cc
+    cmake.h
     config.cc
-    filesystem.h
-    filesystem.cc
-    window.cc
-    window.h
+    config.h
     dialogs.h
-#    api.h
-#    api.cc
+    directories.cc
+    directories.h
+    entrybox.cc
+    entrybox.h
+    filesystem.cc
+    filesystem.h
+    juci.cc
+    juci.h
+    logging.h
+    menu.cc
+    menu.h
     notebook.cc
     notebook.h
-    entrybox.h
-    entrybox.cc
-    directories.h
-    directories.cc
-    terminal.h
-    tooltips.h
-    tooltips.cc
-    singletons.h
+    selectiondialog.cc
+    selectiondialog.h
     singletons.cc
-    cmake.h
-    cmake.cc
+    singletons.h
+    source.cc
+    source.h
+    source_clang.cc
+    source_clang.h
+    terminal.h
+    tooltips.cc
+    tooltips.h
+    window.cc
+    window.h
     
     ../libclangmm/src/CodeCompleteResults.cc
     ../libclangmm/src/CompilationDatabase.cc
@@ -79,65 +97,32 @@ set(source_files juci.h
     ../libclangmm/src/CompileCommands.cc    
     ../libclangmm/src/CompletionString.cc   
     ../libclangmm/src/Cursor.cc
+    ../libclangmm/src/Diagnostic.cc
     ../libclangmm/src/Index.cc
     ../libclangmm/src/SourceLocation.cc
     ../libclangmm/src/SourceRange.cc
     ../libclangmm/src/Token.cc
     ../libclangmm/src/Tokens.cc
     ../libclangmm/src/TranslationUnit.cc
-    ../libclangmm/src/Diagnostic.cc
-    ../libclangmm/src/Utility.cc)
+    ../libclangmm/src/Utility.cc
+)
 
 if(MSYS)
-  list(APPEND source_files terminal_win.cc)
-  list(APPEND source_files dialogs_win.cc)
-else()
-  list(APPEND source_files terminal.cc)
-  list(APPEND source_files dialogs.cc)
-endif()
+  list(APPEND application_files terminal_win.cc dialogs_win.cc)
+else(MSYS)
+  list(APPEND application_files terminal.cc dialogs.cc)
+endif(MSYS)
 
-add_executable(${project_name} ${source_files})
+add_executable(${application_name} ${application_files})
+add_library(${python_module} SHARED ${application_files})
 
-#  add_library(${module} SHARED
-#    api
-#    api_ext)
+include_directories(${global_includes})
+target_link_libraries(${application_name} ${global_libraries} ${python_module})
+target_link_libraries(${python_module} ${global_libraries})
+set_target_properties(${python_module} PROPERTIES PREFIX "")
 
-include_directories(
-  ${Boost_INCLUDE_DIRS}
-#    ${PYTHON_INCLUDE_DIRS}
-  ${GTKMM_INCLUDE_DIRS}
-  ${GTKSVMM_INCLUDE_DIRS}
-  ${LIBCLANG_INCLUDE_DIRS}
-  ${ASPELL_INCLUDE_DIR}
-  ../libclangmm/src
-)
 
-link_directories(
-  ${GTKMM_LIBRARY_DIRS}
-  ${GTKSVMM_LIBRARY_DIRS}
-  ${Boost_LIBRARY_DIRS}
-#    ${PYTHON_INCLUDE_DIRS}
-  ${LIBCLANG_LIBRARY_DIRS}
-)
 
-#  set_target_properties(${module}
-#    PROPERTIES PREFIX ""
-#    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/lib/")
 
-#  target_link_libraries(${module} ${PYTHON_LIBRARIES} ${Boost_LIBRARIES})
-#  target_link_libraries(${module} ${Boost_LIBRARIES})
 
-target_link_libraries(${project_name}
-  ${LIBCLANG_LIBRARIES}
-  ${GTKMM_LIBRARIES}
-  ${GTKSVMM_LIBRARIES}
-  ${Boost_LIBRARIES}
-  ${ASPELL_LIBRARIES}
-  #${PYTHON_LIBRARIES}
-)
 
-#  install(TARGETS ${project_name} ${module}
-install(TARGETS ${project_name}
-  RUNTIME DESTINATION bin
-#    LIBRARY DESTINATION ${lib_install_path}
-)

@@ -2,3 +2,6 @@
 	path = libclangmm
 	url = https://github.com/cppit/libclangmm.git
 	branch = v0.9.3
+[submodule "pybind11"]
+	path = pybind11
+	url = git@github.com:wjakob/pybind11

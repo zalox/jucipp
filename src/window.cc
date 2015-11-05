@@ -1,7 +1,6 @@
 #include "window.h"
 #include "logging.h"
 #include "singletons.h"
-//#include "api.h"
 #include "dialogs.h"
 #include "filesystem.h"
 
@@ -22,7 +21,8 @@ namespace sigc {
 #endif
 }
 
-Window::Window() : compiling(false) {
+Window::Window() : compiling(false),
+  saus(Singleton::terminal.get()) {
   JDEBUG("start");
   set_title("juCi++");
   set_events(Gdk::POINTER_MOTION_MASK|Gdk::FOCUS_CHANGE_MASK|Gdk::SCROLL_MASK);

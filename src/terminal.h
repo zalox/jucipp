@@ -18,6 +18,7 @@ public:
     ~InProgress();
     void done(const std::string& msg);
     void cancel(const std::string& msg);
+
   private:
     void start(const std::string& msg);
     size_t line_nr;
@@ -25,7 +26,6 @@ public:
     Glib::Dispatcher waiting_print;
     std::thread wait_thread;
   };
-  
   Terminal();
   int execute(const std::string &command, const boost::filesystem::path &path="", bool use_pipes=true);
   int execute(std::istream &stdin_stream, std::ostream &stdout_stream, const std::string &command, const boost::filesystem::path &path="");

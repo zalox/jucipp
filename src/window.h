@@ -1,15 +1,17 @@
 #ifndef JUCI_WINDOW_H_
 #define JUCI_WINDOW_H_
 
-#include "gtkmm.h"
+#include <gtkmm.h>
 #include "entrybox.h"
 #include "notebook.h"
 #include <atomic>
+#include "api.h"
 
 class Window : public Gtk::ApplicationWindow {
 public:
   Window();
   Notebook notebook;
+  Saus saus;
 
 protected:
   bool on_key_press_event(GdkEventKey *event);

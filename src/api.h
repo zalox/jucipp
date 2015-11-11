@@ -1,18 +1,27 @@
 #ifndef JUCI_API_H_
 #define JUCI_API_H_
 
+#include <vector>
 #include <string>
-#include "terminal.h"
+#include <boost/filesystem.hpp>
+#include <gtkmm.h>
+#include <boost/python.hpp>
+#include "singletons.h"
 
-class Saus {
+class PythonApi {
 public:
-  Saus(Terminal *t);
-  static Terminal *api_terminal;
+  static void directories_open(const std::string &dir);
 };
 
-class terminal {
+class PythonInterpreter {
 public:
-  void println(const std::string &message);
+  PythonInterpreter();
+  ~PythonInterpreter();
+  void init();
+private:
+  boost::python::object name;
+  void python_exec(const std::string &command);
 };
 
-#endif
+
+#endif // JUCI_API_H_

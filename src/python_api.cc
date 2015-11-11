@@ -1,9 +1,11 @@
 #include "api.h"
-#include <boost/python.hpp>
-namespace py = boost::python;
+#include <pybind11/pybind11.h>
 
-BOOST_PYTHON_MODULE(jucipy) {
-    py::class_<terminal>("terminal", py::init<>())
-    .def("println",&terminal::println)
-    ;
-};
+PYBIND11_PLUGIN(jucipy) {
+  pybind11::module m("jucipy", "Python API for juCi++");
+  pybind11::class_<PythonApi>(m, "API")
+    .def(pybind11::init<>())
+    .def("directories_open", &PythonApi::directories_open, pybind11::arg("dir"))
+  ;
+  return m.ptr();
+}

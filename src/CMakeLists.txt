@@ -44,6 +44,7 @@ set(global_includes
    ${LIBCLANGMM_INCLUDE_DIR}
    ${ASPELL_INCLUDE_DIR}
    ${PYTHON_INCLUDE_DIRS}
+   ${PYBIND11_INCLUDE_DIR}
 )
 
 set(global_libraries

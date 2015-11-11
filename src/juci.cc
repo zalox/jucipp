@@ -89,7 +89,7 @@ void Application::on_startup() {
 Application::Application() : Gtk::Application("no.sout.juci", Gio::APPLICATION_NON_UNIQUE | Gio::APPLICATION_HANDLES_COMMAND_LINE) {
   Singleton::init();
   init_logging();
-  
+  pm.init();
   Glib::set_application_name("juCi++");
   
   window=std::unique_ptr<Window>(new Window());

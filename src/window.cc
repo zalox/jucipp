@@ -21,8 +21,7 @@ namespace sigc {
 #endif
 }
 
-Window::Window() : compiling(false),
-  saus(Singleton::terminal.get()) {
+Window::Window() : compiling(false) {
   JDEBUG("start");
   set_title("juCi++");
   set_events(Gdk::POINTER_MOTION_MASK|Gdk::FOCUS_CHANGE_MASK|Gdk::SCROLL_MASK);

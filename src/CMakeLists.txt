@@ -56,7 +56,7 @@ set(global_libraries
   ${PYTHON_LIBRARIES}
 )
 
-set(application_files
+set(library_files
     api.cc
     api.h
     python_api.cc
@@ -109,18 +109,18 @@ set(application_files
 )
 
 if(MSYS)
-  list(APPEND application_files terminal_win.cc dialogs_win.cc)
+  list(APPEND library_files terminal_win.cc dialogs_win.cc)
 else(MSYS)
-  list(APPEND application_files terminal.cc dialogs.cc)
+  list(APPEND library_files terminal.cc dialogs.cc)
 endif(MSYS)
 
-add_executable(${application_name} ${application_files})
-add_library(${python_module} SHARED ${application_files})
+add_executable(${application_name} main.cc)
+add_library(${library_name} SHARED ${library_files})
 
 include_directories(${global_includes})
-target_link_libraries(${application_name} ${global_libraries} ${python_module})
-target_link_libraries(${python_module} ${global_libraries})
-set_target_properties(${python_module} PROPERTIES PREFIX "")
+target_link_libraries(${application_name} ${library_name})
+target_link_libraries(${library_name} ${global_libraries})
+set_target_properties(${library_name} PROPERTIES PREFIX "")
 
 
 

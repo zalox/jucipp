@@ -1,8 +1,8 @@
 #include "api.h"
 #include "singletons.h"
 
-void PythonApi::directories_open(const std::string &dir) {
-  Singleton::directories->open(dir);
+void PythonApi::directories_open() {
+  Singleton::directories->open("/home/");
 }
 
 PythonInterpreter::PythonInterpreter() {
@@ -33,14 +33,14 @@ void PythonInterpreter::init() {
   python_exec("import sys");
   python_exec("sys.path.append('" + plugin_path.string() + "')");
   python_exec("sys.path.append('/home/zalox/projects/juci/src')");
-  python_exec("import jucipy");
+  python_exec("import libjuci");
   if (boost::filesystem::exists(plugin_path) && boost::filesystem::is_directory(plugin_path)) {
     for (boost::filesystem::directory_iterator it(plugin_path); it != boost::filesystem::directory_iterator(); it++) {
       auto import = it->path().filename();
       while (!import.extension().empty()) { // make sure extensions are stripped on files
         import = import.stem();
       }
-      python_exec("import " + import.string());
+      python_exec("import " + import.string()); // this imports and inits all packages and scrips in juci_home/plugins
     }
   }
 }

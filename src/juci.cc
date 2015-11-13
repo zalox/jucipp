@@ -72,6 +72,7 @@ void Application::on_startup() {
   
   Singleton::menu->init();
   Singleton::menu->build();
+  pm.init();
 
   auto object = Singleton::menu->builder->get_object("juci-menu");
   auto juci_menu = Glib::RefPtr<Gio::Menu>::cast_dynamic(object);
@@ -89,12 +90,7 @@ void Application::on_startup() {
 Application::Application() : Gtk::Application("no.sout.juci", Gio::APPLICATION_NON_UNIQUE | Gio::APPLICATION_HANDLES_COMMAND_LINE) {
   Singleton::init();
   init_logging();
-  pm.init();
   Glib::set_application_name("juCi++");
   
   window=std::unique_ptr<Window>(new Window());
-}
-
-int main(int argc, char *argv[]) {
-  return Application().run(argc, argv);
 }

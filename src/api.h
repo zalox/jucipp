@@ -10,7 +10,7 @@
 
 class PythonApi {
 public:
-  static void directories_open(const std::string &dir);
+  static void directories_open();
 };
 
 class PythonInterpreter {

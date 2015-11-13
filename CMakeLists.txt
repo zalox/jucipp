@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 2.8.4)
 
 set(application_name "juci")
-set(python_module "jucipy")
+set(library_name "libjuci")
 
 project (${application_name})
 

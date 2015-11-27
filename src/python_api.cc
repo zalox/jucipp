@@ -1,11 +1,13 @@
 #include "api.h"
 #include <pybind11/pybind11.h>
+#include "singletons.h"
 
 PYBIND11_PLUGIN(libjuci) {
   pybind11::module m("libjuci", "Python API for juCi++");
-  pybind11::class_<PythonApi>(m, "API")
-    .def(pybind11::init())
-    .def("directories_open", &PythonApi::directories_open)
-  ;
+  m.def("directories_open", [](const std::string &dir) {
+    boost::filesystem::path path(dir);
+    if (boost::filesystem::is_directory(path))
+      Singleton::directories->open(path);
+  }, "Opens directory in file tree", pybind11::arg("String representation of the path"));
   return m.ptr();
 }

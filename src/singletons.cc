@@ -9,6 +9,7 @@ std::unique_ptr<Terminal> Singleton::terminal;
 std::unique_ptr<Directories> Singleton::directories;
 std::unique_ptr<Gtk::Label> Singleton::info;
 std::unique_ptr<Gtk::Label> Singleton::status;
+std::unique_ptr<PythonInterpreter> Singleton::python_interpreter;
 
 void Singleton::init() {
   config=std::unique_ptr<Config>(new Config());
@@ -17,4 +18,5 @@ void Singleton::init() {
   directories=std::unique_ptr<Directories>(new Directories());
   info=std::unique_ptr<Gtk::Label>(new Gtk::Label());
   status=std::unique_ptr<Gtk::Label>(new Gtk::Label());
+  python_interpreter=std::unique_ptr<PythonInterpreter>(new PythonInterpreter());
 }

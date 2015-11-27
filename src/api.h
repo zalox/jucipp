@@ -1,26 +1,22 @@
 #ifndef JUCI_API_H_
 #define JUCI_API_H_
 
-#include <vector>
+#include <unordered_map>
 #include <string>
-#include <boost/filesystem.hpp>
-#include <gtkmm.h>
-#include <boost/python.hpp>
-#include "singletons.h"
-
-class PythonApi {
-public:
-  static void directories_open();
-};
+#include <Python.h>
+#include <memory>
+#include <pybind11/pybind11.h>
 
 class PythonInterpreter {
 public:
   PythonInterpreter();
   ~PythonInterpreter();
-  void init();
+  pybind11::object exec(const std::string &module_name,
+                        std::initializer_list<pybind11::object> args);
+  pybind11::object import(const std::string &module_name);
+
 private:
-  boost::python::object name;
-  void python_exec(const std::string &command);
+  std::unordered_map<std::string, pybind11::module> modules;
 };
 
 

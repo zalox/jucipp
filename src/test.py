@@ -1,7 +1,2 @@
-import sys
-sys.path.append('.')
-from jucipy import terminal
-
-t = terminal()
-
-t.println('Dette er test')
+def test(str)
+  libjuci.directories_open(str)

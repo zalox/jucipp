@@ -4,7 +4,6 @@
 #include <gtkmm.h>
 #include "logging.h"
 #include "window.h"
-#include "api.h"
 
 class Application : public Gtk::Application {
 public:
@@ -17,7 +16,6 @@ private:
   std::vector<boost::filesystem::path> directories;
   std::vector<boost::filesystem::path> files;
   void init_logging();
-  PythonInterpreter pm;
 };
 
 #endif // JUCI_JUCI_H_

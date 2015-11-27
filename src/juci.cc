@@ -69,10 +69,8 @@ void Application::on_activate() {
 
 void Application::on_startup() {
   Gtk::Application::on_startup();
-  
   Singleton::menu->init();
   Singleton::menu->build();
-  pm.init();
 
   auto object = Singleton::menu->builder->get_object("juci-menu");
   auto juci_menu = Glib::RefPtr<Gio::Menu>::cast_dynamic(object);

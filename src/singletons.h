@@ -16,6 +16,7 @@ public:
   static std::unique_ptr<Directories> directories;
   static std::unique_ptr<Gtk::Label> info;
   static std::unique_ptr<Gtk::Label> status;
+  static std::unique_ptr<PythonInterpreter> python_interpreter;
 
   static void init();
 };

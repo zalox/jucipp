@@ -26,9 +26,9 @@ if(MSYS)
 endif()
 
 find_package(LibClang REQUIRED)
-find_package(Boost 1.55 COMPONENTS thread log python system filesystem REQUIRED)
+find_package(Boost 1.55 COMPONENTS thread log system filesystem REQUIRED)
 find_package(ASPELL REQUIRED)
-include(FindPythonLibs)
+find_package(PythonLibs REQUIRED)
 set(PYBIND11_INCLUDE_DIR "../pybind11/include")
 set(LIBCLANGMM_INCLUDE_DIR ../libclangmm/src)
 
@@ -118,12 +118,7 @@ add_executable(${application_name} main.cc)
 add_library(${library_name} SHARED ${library_files})
 
 include_directories(${global_includes})
-target_link_libraries(${application_name} ${library_name})
 target_link_libraries(${library_name} ${global_libraries})
+target_link_libraries(${application_name} ${library_name})
 set_target_properties(${library_name} PROPERTIES PREFIX "")
-
-
-
-
-
 

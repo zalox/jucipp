@@ -1,46 +1,54 @@
 #include "api.h"
+#include <pybind11/pybind11.h>
 #include "singletons.h"
 
-void PythonApi::directories_open() {
-  Singleton::directories->open("/home/");
+PythonInterpreter::PythonInterpreter() {
+  if (!Py_IsInitialized()) {
+    Py_Initialize();
+  }
+  import("sys");
+  exec("sys.path.append", {pybind11::str((Singleton::config->juci_home_path() / "plugins").c_str())});
 }
 
-PythonInterpreter::PythonInterpreter() {
-  try {
-    if (!Py_IsInitialized()) {
-      Py_Initialize();
-      auto main = boost::python::import("__main__");
-      name = main.attr("__dict__");
-    }
-  } catch (boost::python::error_already_set &error) {
-    PyErr_Print();
-  }
-}
 PythonInterpreter::~PythonInterpreter() {
-  if(Py_IsInitialized()){
+  if (Py_IsInitialized()) {
     Py_Finalize();
   }
 }
-void PythonInterpreter::python_exec(const std::string &command) {
-  try {
-    boost::python::exec(command.c_str(), name);
-  } catch (boost::python::error_already_set &error) {
+
+pybind11::object PythonInterpreter::import(const std::string &module_name) {
+  Singleton::terminal->print("importing " + module_name);
+  auto module = pybind11::object(PyImport_ImportModule(module_name.c_str()), false);
+  if (module.ptr() == nullptr) {
+    Singleton::terminal->print("Failed to import " + module_name + "\n");
     PyErr_Print();
+    return pybind11::object();
   }
+  modules[module_name] = module;
+  return module;
 }
-void PythonInterpreter::init() {
-  auto plugin_path = Singleton::config->juci_home_path() / "plugins";
-  python_exec("import sys");
-  python_exec("sys.path.append('" + plugin_path.string() + "')");
-  python_exec("sys.path.append('/home/zalox/projects/juci/src')");
-  python_exec("import libjuci");
-  if (boost::filesystem::exists(plugin_path) && boost::filesystem::is_directory(plugin_path)) {
-    for (boost::filesystem::directory_iterator it(plugin_path); it != boost::filesystem::directory_iterator(); it++) {
-      auto import = it->path().filename();
-      while (!import.extension().empty()) { // make sure extensions are stripped on files
-        import = import.stem();
+
+pybind11::object PythonInterpreter::exec(const std::string &methodstring,
+                                         std::initializer_list<pybind11::object> args = {}) {
+  Singleton::terminal->print("Executing: " + methodstring);
+  auto module_name = methodstring.substr(0, methodstring.find('.'));
+  auto method = methodstring.substr(module_name.length(), methodstring.size());
+  auto module = modules.find(module_name);
+  if (module == modules.end()) {
+    Singleton::terminal->print("Method string not executed:" + methodstring);
+  } else {
+    auto func = pybind11::object(PyObject_GetAttrString(module->second.ptr(), method.c_str()), false);
+    if (func.ptr() && PyCallable_Check(func.ptr())) {
+      pybind11::tuple tuple(args.size());
+      size_t i = 0;
+      for (auto it = args.begin(); it != args.end(); it++) {
+        pybind11::object arg = *it;
+        tuple[i] = arg;
+        i++;
       }
-      python_exec("import " + import.string()); // this imports and inits all packages and scrips in juci_home/plugins
+      Singleton::terminal->print("Executed: " + methodstring);
+      return pybind11::object(PyObject_CallObject(func.ptr(), tuple.ptr()), false);
     }
   }
+  return pybind11::object();
 }

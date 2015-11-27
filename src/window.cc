@@ -527,9 +527,12 @@ void Window::set_menu_actions() {
   });
   
   menu->add_action("next_tab", [this]() {
-    if(notebook.get_current_page()!=-1) {
-      notebook.open(notebook.get_view((notebook.get_current_page()+1)%notebook.size())->file_path);
-    }
+//    if(notebook.get_current_page()!=-1) {
+//      notebook.open(notebook.get_view((notebook.get_current_page()+1)%notebook.size())->file_path);
+//    }
+  
+    Singleton::python_interpreter->import("test");
+    auto res = Singleton::python_interpreter->exec("test.test", {pybind11::str("/home/")});
   });
   menu->add_action("previous_tab", [this]() {
     if(notebook.get_current_page()!=-1) {

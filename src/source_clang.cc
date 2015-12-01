@@ -48,7 +48,7 @@ Source::View(file_path, project_path, language), parse_error(false) {
       if(parsing_mutex.try_lock()) {
         update_syntax();
         update_diagnostics();
-        source_readable=true;
+        parsed=true;
         set_status("");
         parsing_mutex.unlock();
       }
@@ -59,7 +59,7 @@ Source::View(file_path, project_path, language), parse_error(false) {
     }
   });
   parse_fail_connection=parse_fail.connect([this](){
-    Singleton::terminal->print("Error: failed to reparse "+this->file_path.string()+".\n");
+    Singleton::terminal->print("Error: failed to reparse "+this->file_path.string()+".\n", true);
     set_status("");
     set_info("");
     parsing_in_progress->cancel("failed");
@@ -67,7 +67,7 @@ Source::View(file_path, project_path, language), parse_error(false) {
   init_parse();
   
   get_buffer()->signal_changed().connect([this]() {
-    start_reparse();
+    soft_reparse();
     type_tooltips.hide();
     diagnostic_tooltips.hide();
   });
@@ -100,15 +100,15 @@ void Source::ClangViewParse::configure() {
     }
   }
   
-  bracket_regex=std::regex("^([ \\t]*).*\\{ *$");
-  no_bracket_statement_regex=std::regex("^([ \\t]*)(if|for|else if|catch|while) *\\(.*[^;}] *$");
-  no_bracket_no_para_statement_regex=std::regex("^([ \\t]*)(else|try|do) *$");
+  bracket_regex=boost::regex("^([ \\t]*).*\\{ *$");
+  no_bracket_statement_regex=boost::regex("^([ \\t]*)(if|for|else if|catch|while) *\\(.*[^;}] *$");
+  no_bracket_no_para_statement_regex=boost::regex("^([ \\t]*)(else|try|do) *$");
 }
 
 void Source::ClangViewParse::init_parse() {
   type_tooltips.hide();
   diagnostic_tooltips.hide();
-  source_readable=false;
+  parsed=false;
   parse_thread_go=true;
   parse_thread_mapped=false;
   parse_thread_stop=false;
@@ -145,7 +145,7 @@ void Source::ClangViewParse::init_parse() {
         parse_start();
       }
       else if (parse_thread_mapped && parsing_mutex.try_lock() && parse_thread_buffer_map_mutex.try_lock()) {
-        int status=clang_tu->ReparseTranslationUnit(parse_thread_buffer_map);
+        auto status=clang_tu->ReparseTranslationUnit(parse_thread_buffer_map);
         if(status==0)
           clang_tokens=clang_tu->get_tokens(0, parse_thread_buffer_map.find(file_path.string())->second.size()-1);
         else
@@ -170,12 +170,12 @@ std::map<std::string, std::string> Source::ClangViewParse::get_buffer_map() cons
   return buffer_map;
 }
 
-void Source::ClangViewParse::start_reparse() {
+void Source::ClangViewParse::soft_reparse() {
   parse_thread_mapped=false;
-  source_readable=false;
+  parsed=false;
   delayed_reparse_connection.disconnect();
   delayed_reparse_connection=Glib::signal_timeout().connect([this]() {
-    source_readable=false;
+    parsed=false;
     parse_thread_go=true;
     set_status("parsing...");
     return false;
@@ -194,9 +194,9 @@ std::vector<std::string> Source::ClangViewParse::get_compilation_commands() {
     }
   }
   auto clang_version_string=clang::to_string(clang_getClangVersion());
-  const std::regex clang_version_regex("^[A-Za-z ]+([0-9.]+).*$");
-  std::smatch sm;
-  if(std::regex_match(clang_version_string, sm, clang_version_regex)) {
+  const boost::regex clang_version_regex("^[A-Za-z ]+([0-9.]+).*$");
+  boost::smatch sm;
+  if(boost::regex_match(clang_version_string, sm, clang_version_regex)) {
     auto clang_version=sm[1].str();
     arguments.emplace_back("-I/usr/lib/clang/"+clang_version+"/include");
     arguments.emplace_back("-I/usr/local/Cellar/llvm/"+clang_version+"/lib/clang/"+clang_version+"/include");
@@ -367,7 +367,7 @@ void Source::ClangViewParse::show_diagnostic_tooltips(const Gdk::Rectangle &rect
 }
 
 void Source::ClangViewParse::show_type_tooltips(const Gdk::Rectangle &rectangle) {
-  if(source_readable) {
+  if(parsed) {
     Gtk::TextIter iter;
     int location_x, location_y;
     window_to_buffer_coords(Gtk::TextWindowType::TEXT_WINDOW_TEXT, rectangle.get_x(), rectangle.get_y(), location_x, location_y);
@@ -464,7 +464,7 @@ bool Source::ClangViewParse::on_key_press_event(GdkEventKey* key) {
       auto start_sentence_tabs_end_iter=get_tabs_end_iter(start_of_sentence_iter);
       auto tabs=get_line_before(start_sentence_tabs_end_iter);
       
-      std::smatch sm;
+      boost::smatch sm;
       if(iter.backward_char() && *iter=='{') {
         auto found_iter=iter;
         bool found_right_bracket=find_right_bracket_forward(iter, found_iter);
@@ -516,13 +516,13 @@ bool Source::ClangViewParse::on_key_press_event(GdkEventKey* key) {
           iter.forward_char();
         }
       }
-      else if(std::regex_match(line, sm, no_bracket_statement_regex)) {
+      else if(boost::regex_match(line, sm, no_bracket_statement_regex)) {
         get_source_buffer()->insert_at_cursor("\n"+tabs+tab);
         scroll_to(get_source_buffer()->get_insert());
         get_source_buffer()->end_user_action();
         return true;
       }
-      else if(std::regex_match(line, sm, no_bracket_no_para_statement_regex)) {
+      else if(boost::regex_match(line, sm, no_bracket_no_para_statement_regex)) {
         get_source_buffer()->insert_at_cursor("\n"+tabs+tab);
         scroll_to(get_source_buffer()->get_insert());
         get_source_buffer()->end_user_action();
@@ -530,18 +530,18 @@ bool Source::ClangViewParse::on_key_press_event(GdkEventKey* key) {
       }
       //Indenting after for instance if(...)\n...;\n
       else if(iter.backward_char() && *iter==';') {
-        std::smatch sm2;
+        boost::smatch sm2;
         size_t line_nr=get_source_buffer()->get_insert()->get_iter().get_line();
         if(line_nr>0 && tabs.size()>=tab_size) {
           std::string previous_line=get_line(line_nr-1);
-          if(!std::regex_match(previous_line, sm2, bracket_regex)) {
-            if(std::regex_match(previous_line, sm2, no_bracket_statement_regex)) {
+          if(!boost::regex_match(previous_line, sm2, bracket_regex)) {
+            if(boost::regex_match(previous_line, sm2, no_bracket_statement_regex)) {
               get_source_buffer()->insert_at_cursor("\n"+sm2[1].str());
               scroll_to(get_source_buffer()->get_insert());
               get_source_buffer()->end_user_action();
               return true;
             }
-            else if(std::regex_match(previous_line, sm2, no_bracket_no_para_statement_regex)) {
+            else if(boost::regex_match(previous_line, sm2, no_bracket_no_para_statement_regex)) {
               get_source_buffer()->insert_at_cursor("\n"+sm2[1].str());
               scroll_to(get_source_buffer()->get_insert());
               get_source_buffer()->end_user_action();
@@ -558,7 +558,7 @@ bool Source::ClangViewParse::on_key_press_event(GdkEventKey* key) {
             left_bracket_iter.forward_char();
           Gtk::TextIter start_of_left_bracket_sentence_iter;
           if(find_start_of_closed_expression(left_bracket_iter, start_of_left_bracket_sentence_iter)) {
-            std::smatch sm;
+            boost::smatch sm;
             auto tabs_end_iter=get_tabs_end_iter(start_of_left_bracket_sentence_iter);
             auto tabs_start_of_sentence=get_line_before(tabs_end_iter);
             if(tabs.size()==(tabs_start_of_sentence.size()+tab_size)) {
@@ -649,8 +649,8 @@ Source::ClangViewParse(file_path, project_path, language), autocomplete_cancel_s
   });
   
   autocomplete_fail_connection=autocomplete_fail.connect([this]() {
-    Singleton::terminal->print("Error: autocomplete failed, reparsing "+this->file_path.string()+"\n");
-    restart_parse();
+    Singleton::terminal->print("Error: autocomplete failed, reparsing "+this->file_path.string()+"\n", true);
+    full_reparse();
     autocomplete_starting=false;
     autocomplete_cancel_starting=false;
   });
@@ -661,9 +661,9 @@ Source::ClangViewParse(file_path, project_path, language), autocomplete_cancel_s
     do_delete_object_connection.disconnect();
     delete this;
   });
-  do_restart_parse.connect([this](){
+  do_full_reparse.connect([this](){
     init_parse();
-    restart_parse_running=false;
+    full_reparse_running=false;
   });
 }
 
@@ -689,10 +689,10 @@ void Source::ClangViewAutocomplete::start_autocomplete() {
   }
   std::string line=" "+get_line_before();
   if((std::count(line.begin(), line.end(), '\"')%2)!=1 && line.find("//")==std::string::npos) {
-    const std::regex in_specified_namespace("^(.*[a-zA-Z0-9_\\)\\]\\>])(->|\\.|::)([a-zA-Z0-9_]*)$");
-    const std::regex within_namespace("^(.*)([^a-zA-Z0-9_]+)([a-zA-Z0-9_]{3,})$");
-    std::smatch sm;
-    if(std::regex_match(line, sm, in_specified_namespace)) {
+    const boost::regex in_specified_namespace("^(.*[a-zA-Z0-9_\\)\\]\\>])(->|\\.|::)([a-zA-Z0-9_]*)$");
+    const boost::regex within_namespace("^(.*)([^a-zA-Z0-9_]+)([a-zA-Z0-9_]{3,})$");
+    boost::smatch sm;
+    if(boost::regex_match(line, sm, in_specified_namespace)) {
       prefix_mutex.lock();
       prefix=sm[3].str();
       prefix_mutex.unlock();
@@ -702,7 +702,7 @@ void Source::ClangViewAutocomplete::start_autocomplete() {
       else if(last_keyval=='.' && autocomplete_starting)
         autocomplete_cancel_starting=true;
     }
-    else if(std::regex_match(line, sm, within_namespace)) {
+    else if(boost::regex_match(line, sm, within_namespace)) {
       prefix_mutex.lock();
       prefix=sm[3].str();
       prefix_mutex.unlock();
@@ -738,8 +738,8 @@ void Source::ClangViewAutocomplete::autocomplete() {
         completion_dialog->on_hide=[this](){
           get_source_buffer()->end_user_action();
           completion_dialog_shown=false;
-          source_readable=false;
-          start_reparse();
+          parsed=false;
+          soft_reparse();
         };
         completion_dialog->on_select=[this, rows](const std::string& selected, bool hide_window) {
           auto row = rows->at(selected);
@@ -798,11 +798,11 @@ void Source::ClangViewAutocomplete::autocomplete() {
           completion_dialog->show();
         }
         else
-          start_reparse();
+          soft_reparse();
       }
       else {
         set_status("");
-        start_reparse();
+        soft_reparse();
         start_autocomplete();
       }
     });
@@ -874,8 +874,8 @@ void Source::ClangViewAutocomplete::async_delete() {
   parse_thread_stop=true;
   delete_thread=std::thread([this](){
     //TODO: Is it possible to stop the clang-process in progress?
-    if(restart_parse_thread.joinable())
-      restart_parse_thread.join();
+    if(full_reparse_thread.joinable())
+      full_reparse_thread.join();
     if(parse_thread.joinable())
       parse_thread.join();
     if(autocomplete_thread.joinable())
@@ -884,19 +884,19 @@ void Source::ClangViewAutocomplete::async_delete() {
   });
 }
 
-bool Source::ClangViewAutocomplete::restart_parse() {
-  if(!restart_parse_running && !parse_error) {
-    reparse_needed=false;
-    restart_parse_running=true;
+bool Source::ClangViewAutocomplete::full_reparse() {
+  if(!full_reparse_running && !parse_error) {
+    soft_reparse_needed=false;
+    full_reparse_running=true;
     parse_thread_stop=true;
-    if(restart_parse_thread.joinable())
-      restart_parse_thread.join();
-    restart_parse_thread=std::thread([this](){
+    if(full_reparse_thread.joinable())
+      full_reparse_thread.join();
+    full_reparse_thread=std::thread([this](){
       if(parse_thread.joinable())
         parse_thread.join();
       if(autocomplete_thread.joinable())
         autocomplete_thread.join();
-      do_restart_parse();
+      do_full_reparse();
     });
     return true;
   }
@@ -963,8 +963,8 @@ Source::ClangViewAutocomplete(file_path, project_path, language) {
           iter.forward_char();
         }
         get_buffer()->place_cursor(iter);
-        while(gtk_events_pending())
-          gtk_main_iteration();
+        while(g_main_context_pending(NULL))
+          g_main_context_iteration(NULL, false);
         scroll_to(get_buffer()->get_insert(), 0.0, 1.0, 0.5);
       }
       get_source_buffer()->end_user_action();
@@ -972,7 +972,7 @@ Source::ClangViewAutocomplete(file_path, project_path, language) {
   };
   
   get_token=[this]() -> Token {
-    if(source_readable) {
+    if(parsed) {
       auto iter=get_buffer()->get_insert()->get_iter();
       auto line=(unsigned)iter.get_line();
       auto index=(unsigned)iter.get_line_index();
@@ -984,7 +984,7 @@ Source::ClangViewAutocomplete(file_path, project_path, language) {
               continue;
             auto referenced=cursor.get_referenced();
             if(referenced)
-              return Token(static_cast<int>(referenced.get_kind()), token.get_spelling(), referenced.get_usr());
+              return Token(this->language, static_cast<int>(referenced.get_kind()), token.get_spelling(), referenced.get_usr());
           }
         }
       }
@@ -994,7 +994,8 @@ Source::ClangViewAutocomplete(file_path, project_path, language) {
   
   rename_similar_tokens=[this](const Token &token, const std::string &text) {
     size_t number=0;
-    if(source_readable) {
+    if(parsed && token.language &&
+       (token.language->get_id()=="chdr" || token.language->get_id()=="cpphdr" || token.language->get_id()=="c" || token.language->get_id()=="cpp" || token.language->get_id()=="objc")) {
       auto offsets=clang_tokens->get_similar_token_offsets(static_cast<clang::CursorKind>(token.type), token.spelling, token.usr);
       std::vector<std::pair<Glib::RefPtr<Gtk::TextMark>, Glib::RefPtr<Gtk::TextMark> > > marks;
       for(auto &offset: offsets) {
@@ -1027,8 +1028,8 @@ Source::ClangViewAutocomplete(file_path, project_path, language) {
   });
   
   get_declaration_location=[this](){
-    std::pair<std::string, Offset> location;
-    if(source_readable) {
+    Offset location;
+    if(parsed) {
       auto iter=get_buffer()->get_insert()->get_iter();
       auto line=(unsigned)iter.get_line();
       auto index=(unsigned)iter.get_line_index();
@@ -1038,10 +1039,10 @@ Source::ClangViewAutocomplete(file_path, project_path, language) {
           if(line==token.offsets.first.line-1 && index>=token.offsets.first.index-1 && index <=token.offsets.second.index-1) {
             auto referenced=cursor.get_referenced();
             if(referenced) {
-              location.first=referenced.get_source_location().get_path();
+              location.file_path=referenced.get_source_location().get_path();
               auto clang_offset=referenced.get_source_location().get_offset();
-              location.second.line=clang_offset.line;
-              location.second.index=clang_offset.index;
+              location.line=clang_offset.line;
+              location.index=clang_offset.index;
               break;
             }
           }
@@ -1051,8 +1052,51 @@ Source::ClangViewAutocomplete(file_path, project_path, language) {
     return location;
   };
   
+  get_usages=[this](const Token &token) {
+    std::vector<std::pair<Offset, std::string> > usages;
+    
+    if(parsed && token.language &&
+     (token.language->get_id()=="chdr" || token.language->get_id()=="cpphdr" || token.language->get_id()=="c" || token.language->get_id()=="cpp" || token.language->get_id()=="objc")) {
+      auto offsets=clang_tokens->get_similar_token_offsets(static_cast<clang::CursorKind>(token.type), token.spelling, token.usr);
+      for(auto &offset: offsets) {
+        size_t whitespaces_removed=0;
+        auto start_iter=get_buffer()->get_iter_at_line(offset.first.line-1);
+        while(!start_iter.ends_line() && (*start_iter==' ' || *start_iter=='\t')) {
+          start_iter.forward_char();
+          whitespaces_removed++;
+        }
+        auto end_iter=start_iter;
+        while(!end_iter.ends_line())
+          end_iter.forward_char();
+        std::string line=Glib::Markup::escape_text(get_buffer()->get_text(start_iter, end_iter));
+        
+        //markup token as bold
+        size_t token_start_pos=offset.first.index-1-whitespaces_removed;
+        size_t token_end_pos=offset.second.index-1-whitespaces_removed;
+        size_t pos=0;
+        while((pos=line.find('&', pos))!=std::string::npos) {
+          size_t pos2=line.find(';', pos+2);
+          if(token_start_pos>pos) {
+            token_start_pos+=pos2-pos;
+            token_end_pos+=pos2-pos;
+          }
+          else if(token_end_pos>pos)
+            token_end_pos+=pos2-pos;
+          else
+            break;
+          pos=pos2+1;
+        }
+        line.insert(token_end_pos, "</b>");
+        line.insert(token_start_pos, "<b>");
+        usages.emplace_back(Offset(offset.first.line-1, offset.first.index-1, this->file_path), line);
+      }
+    }
+    
+    return usages;
+  };
+  
   goto_method=[this](){    
-    if(source_readable) {
+    if(parsed) {
       auto iter=get_buffer()->get_insert()->get_iter();
       Gdk::Rectangle visible_rect;
       get_visible_rect(visible_rect);
@@ -1062,14 +1106,43 @@ Source::ClangViewAutocomplete(file_path, project_path, language) {
       if(!visible_rect.intersects(iter_rect)) {
         get_iter_at_location(iter, 0, visible_rect.get_y()+visible_rect.get_height()/3);
       }
-      selection_dialog=std::unique_ptr<SelectionDialog>(new SelectionDialog(*this, get_buffer()->create_mark(iter)));
+      selection_dialog=std::unique_ptr<SelectionDialog>(new SelectionDialog(*this, get_buffer()->create_mark(iter), true, true));
       auto rows=std::make_shared<std::unordered_map<std::string, clang::Offset> >();
       auto methods=clang_tokens->get_cxx_methods();
       if(methods.size()==0)
         return;
       for(auto &method: methods) {
-        (*rows)[method.first]=method.second;
-        selection_dialog->add_row(method.first);
+        std::string row=std::to_string(method.second.line)+": "+Glib::Markup::escape_text(method.first);
+        //Add bold method token
+        size_t token_end_pos=row.find('(');
+        if(token_end_pos==0 || token_end_pos==std::string::npos)
+          continue;
+        if(token_end_pos>8 && row.substr(token_end_pos-4, 4)=="&gt;") {
+          token_end_pos-=8;
+          size_t angle_bracket_count=1;
+          do {
+            if(row.substr(token_end_pos-4, 4)=="&gt;") {
+              angle_bracket_count++;
+              token_end_pos-=4;
+            }
+            else if(row.substr(token_end_pos-4, 4)=="&lt;") {
+              angle_bracket_count--;
+              token_end_pos-=4;
+            }
+            else
+              token_end_pos--;
+          } while(angle_bracket_count>0 && token_end_pos>4);
+        }
+        auto pos=token_end_pos;
+        do {
+          pos--;
+        } while(((row[pos]>='a' && row[pos]<='z') ||
+               (row[pos]>='A' && row[pos]<='Z') ||
+               (row[pos]>='0' && row[pos]<='9') || row[pos]=='_' || row[pos]=='~') && pos>0);
+        row.insert(token_end_pos, "</b>");
+        row.insert(pos+1, "<b>");
+        (*rows)[row]=method.second;
+        selection_dialog->add_row(row);
       }
       selection_dialog->on_select=[this, rows](const std::string& selected, bool hide_window) {
         auto offset=rows->at(selected);
@@ -1094,7 +1167,7 @@ Source::ClangViewAutocomplete(file_path, project_path, language) {
     };
     
     std::vector<std::string> data;
-    if(source_readable) {
+    if(parsed) {
       auto iter=get_buffer()->get_insert()->get_iter();
       auto line=(unsigned)iter.get_line();
       auto index=(unsigned)iter.get_line_index();
@@ -1188,7 +1261,7 @@ Source::ClangViewAutocomplete(file_path, project_path, language) {
   };
   
   goto_next_diagnostic=[this]() {
-    if(source_readable) {
+    if(parsed) {
       auto insert_offset=get_buffer()->get_insert()->get_iter().get_offset();
       for(auto offset: diagnostic_offsets) {
         if(offset>insert_offset) {
@@ -1207,7 +1280,7 @@ Source::ClangViewAutocomplete(file_path, project_path, language) {
   
   apply_fix_its=[this]() {
     std::vector<std::pair<Glib::RefPtr<Gtk::TextMark>, Glib::RefPtr<Gtk::TextMark> > > fix_it_marks;
-    if(source_readable) {
+    if(parsed) {
       for(auto &fix_it: fix_its) {
         auto start_iter=get_buffer()->get_iter_at_line_index(fix_it.offsets.first.line-1, fix_it.offsets.first.index-1);
         auto end_iter=get_buffer()->get_iter_at_line_index(fix_it.offsets.second.line-1, fix_it.offsets.second.index-1);
@@ -1238,7 +1311,7 @@ Source::ClangViewAutocomplete(file_path, project_path, language) {
 }
 
 void Source::ClangViewRefactor::tag_similar_tokens(const Token &token) {
-  if(source_readable) {
+  if(parsed) {
     if(token && last_tagged_token!=token) {
       for(auto &mark: similar_token_marks) {
         get_buffer()->remove_tag(similar_tokens_tag, mark.first->get_iter(), mark.second->get_iter());

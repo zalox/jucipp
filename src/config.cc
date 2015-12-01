@@ -81,7 +81,6 @@ void Config::retrieve_config() {
     menu.keys[i.first] = i.second.get_value<std::string>();
   }
   get_source();
-  get_directory_filter();
 
   window.theme_name=cfg.get<std::string>("gtk_theme.name");
   window.theme_variant=cfg.get<std::string>("gtk_theme.variant");
@@ -89,8 +88,20 @@ void Config::retrieve_config() {
   window.default_size = {cfg.get<int>("default_window_size.width"), cfg.get<int>("default_window_size.height")};
   terminal.make_command=cfg.get<std::string>("project.make_command");
   terminal.cmake_command=cfg.get<std::string>("project.cmake_command");
-  terminal.clang_format_command=cfg.get<std::string>("project.clang_format_command", "clang-format");
   terminal.history_size=cfg.get<int>("terminal_history_size");
+  
+  terminal.clang_format_command=cfg.get<std::string>("project.clang_format_command", "clang-format");
+#ifdef __linux
+  if(terminal.clang_format_command=="clang-format" &&
+     !boost::filesystem::exists("/usr/bin/clang-format") && !boost::filesystem::exists("/usr/local/bin/clang-format")) {
+    if(boost::filesystem::exists("/usr/bin/clang-format-3.7"))
+      terminal.clang_format_command="/usr/bin/clang-format-3.7";
+    else if(boost::filesystem::exists("/usr/bin/clang-format-3.6"))
+      terminal.clang_format_command="/usr/bin/clang-format-3.6";
+    else if(boost::filesystem::exists("/usr/bin/clang-format-3.5"))
+      terminal.clang_format_command="/usr/bin/clang-format-3.5";
+  }
+#endif
 }
 
 bool Config::check_config_file(const boost::property_tree::ptree &default_cfg, std::string parent_path) {
@@ -146,6 +157,8 @@ void Config::get_source() {
   source.style=source_json.get<std::string>("style");
   source.font=source_json.get<std::string>("font");
 
+  source.cleanup_whitespace_characters=source_json.get<bool>("cleanup_whitespace_characters");
+
   source.show_map = source_json.get<bool>("show_map");
   source.map_font_size = source_json.get<std::string>("map_font_size");
 
@@ -173,16 +186,4 @@ void Config::get_source() {
       queries[i.first]=i.second.get_value<std::string>();
     }
   }
-}
-
-void Config::get_directory_filter() {
-  boost::property_tree::ptree dir_json = cfg.get_child("directoryfilter");
-  boost::property_tree::ptree ignore_json = dir_json.get_child("ignore");
-  boost::property_tree::ptree except_json = dir_json.get_child("exceptions");
-  directories.exceptions.clear();
-  directories.ignored.clear();
-  for ( auto &i : except_json )
-    directories.exceptions.emplace_back(i.second.get_value<std::string>());
-  for ( auto &i : ignore_json )
-    directories.ignored.emplace_back(i.second.get_value<std::string>());
 }

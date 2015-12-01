@@ -78,26 +78,30 @@ Window::Window() : compiling(false) {
 
   notebook.signal_switch_page().connect([this](Gtk::Widget* page, guint page_num) {
     if(notebook.get_current_page()!=-1) {
+      auto view=notebook.get_current_view();
       if(search_entry_shown && entry_box.labels.size()>0) {
-        notebook.get_current_view()->update_search_occurrences=[this](int number){
+        view->update_search_occurrences=[this](int number){
           entry_box.labels.begin()->update(0, std::to_string(number));
         };
-        notebook.get_current_view()->search_highlight(last_search, case_sensitive_search, regex_search);
+        view->search_highlight(last_search, case_sensitive_search, regex_search);
       }
 
       activate_menu_items();
       
-      Singleton::directories->select(notebook.get_current_view()->file_path);
+      Singleton::directories->select(view->file_path);
       
-      if(auto source_view=dynamic_cast<Source::ClangView*>(notebook.get_current_view())) {
-        if(source_view->reparse_needed) {
-          source_view->start_reparse();
-          source_view->reparse_needed=false;
-        }
+      if(view->full_reparse_needed) {
+        if(!view->full_reparse())
+          Singleton::terminal->async_print("Error: failed to reparse "+view->file_path.string()+". Please reopen the file manually.\n", true);
+        view->full_reparse_needed=false;
+      }
+      else if(view->soft_reparse_needed) {
+        view->soft_reparse();
+        view->soft_reparse_needed=false;
       }
       
-      notebook.get_current_view()->set_status(notebook.get_current_view()->status);
-      notebook.get_current_view()->set_info(notebook.get_current_view()->info);
+      view->set_status(view->status);
+      view->set_info(view->info);
     }
   });
   notebook.signal_page_removed().connect([this](Gtk::Widget* page, guint page_num) {
@@ -144,14 +148,14 @@ void Window::set_menu_actions() {
     notebook.open(Singleton::config->juci_home_path()/"config"/"config.json");
   });
   menu->add_action("quit", [this]() {
-    hide();
+    close();
   });
   
   menu->add_action("new_file", [this]() {
     boost::filesystem::path path = Dialog::new_file();
     if(path!="") {
       if(boost::filesystem::exists(path)) {
-        Singleton::terminal->print("Error: "+path.string()+" already exists.\n");
+        Singleton::terminal->print("Error: "+path.string()+" already exists.\n", true);
       }
       else {
         if(filesystem::write(path)) {
@@ -161,7 +165,7 @@ void Window::set_menu_actions() {
           Singleton::terminal->print("New file "+path.string()+" created.\n");
         }
         else
-          Singleton::terminal->print("Error: could not create new file "+path.string()+".\n");
+          Singleton::terminal->print("Error: could not create new file "+path.string()+".\n", true);
       }
     }
   });
@@ -169,13 +173,15 @@ void Window::set_menu_actions() {
     auto time_now=std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     boost::filesystem::path path = Dialog::new_folder();
     if(path!="" && boost::filesystem::exists(path)) {
-      if(boost::filesystem::last_write_time(path)>=time_now) {
+      boost::system::error_code ec;
+      auto last_write_time=boost::filesystem::last_write_time(path, ec);
+      if(!ec && last_write_time>=time_now) {
         if(Singleton::directories->current_path!="")
           Singleton::directories->update();
         Singleton::terminal->print("New folder "+path.string()+" created.\n");
       }
       else
-        Singleton::terminal->print("Error: "+path.string()+" already exists.\n");
+        Singleton::terminal->print("Error: "+path.string()+" already exists.\n", true);
       Singleton::directories->select(path);
     }
   });
@@ -192,11 +198,11 @@ void Window::set_menu_actions() {
       auto cpp_main_path=project_path;
       cpp_main_path+="/main.cpp";
       if(boost::filesystem::exists(cmakelists_path)) {
-        Singleton::terminal->print("Error: "+cmakelists_path.string()+" already exists.\n");
+        Singleton::terminal->print("Error: "+cmakelists_path.string()+" already exists.\n", true);
         return;
       }
       if(boost::filesystem::exists(cpp_main_path)) {
-        Singleton::terminal->print("Error: "+cpp_main_path.string()+" already exists.\n");
+        Singleton::terminal->print("Error: "+cpp_main_path.string()+" already exists.\n", true);
         return;
       }
       std::string cmakelists="cmake_minimum_required(VERSION 2.8)\n\nproject("+project_name+")\n\nset(CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -std=c++1y -Wall\")\n\nadd_executable("+project_name+" main.cpp)\n";
@@ -207,7 +213,7 @@ void Window::set_menu_actions() {
         Singleton::terminal->print("C++ project "+project_name+" created.\n");
       }
       else
-        Singleton::terminal->print("Error: Could not create project "+project_path.string()+"\n");
+        Singleton::terminal->print("Error: Could not create project "+project_path.string()+"\n", true);
     }
   });
   
@@ -327,8 +333,8 @@ void Window::set_menu_actions() {
   });
   menu->add_action("source_center_cursor", [this]() {
     if(notebook.get_current_page()!=-1) {
-      while(gtk_events_pending())
-        gtk_main_iteration();
+      while(g_main_context_pending(NULL))
+        g_main_context_iteration(NULL, false);
       if(notebook.get_current_page()!=-1)
         notebook.get_current_view()->scroll_to(notebook.get_current_view()->get_buffer()->get_insert(), 0.0, 1.0, 0.5);
     }
@@ -379,10 +385,15 @@ void Window::set_menu_actions() {
     if(notebook.get_current_page()!=-1) {
       if(notebook.get_current_view()->get_declaration_location) {
         auto location=notebook.get_current_view()->get_declaration_location();
-        if(location.first.size()>0) {
-          notebook.open(location.first);
-          auto line=static_cast<int>(location.second.line)-1;
-          auto index=static_cast<int>(location.second.index)-1;
+        if(!location.file_path.empty()) {
+          boost::filesystem::path declaration_file;
+          boost::system::error_code ec;
+          declaration_file=boost::filesystem::canonical(location.file_path, ec);
+          if(ec)
+            declaration_file=location.file_path;
+          notebook.open(declaration_file);
+          auto line=static_cast<int>(location.line)-1;
+          auto index=static_cast<int>(location.index)-1;
           auto buffer=notebook.get_current_view()->get_buffer();
           line=std::min(line, buffer->get_line_count()-1);
           if(line>=0) {
@@ -393,11 +404,73 @@ void Window::set_menu_actions() {
             index=std::min(index, end_line_index);
             buffer->place_cursor(buffer->get_iter_at_line_index(line, index));
             
-            while(gtk_events_pending())
-              gtk_main_iteration();
+            while(g_main_context_pending(NULL))
+              g_main_context_iteration(NULL, false);
             if(notebook.get_current_page()!=-1)
               notebook.get_current_view()->scroll_to(notebook.get_current_view()->get_buffer()->get_insert(), 0.0, 1.0, 0.5);
           }
+        }
+      }
+    }
+  });
+  menu->add_action("source_goto_usage", [this]() {
+    if(notebook.get_current_page()!=-1) {
+      auto current_view=notebook.get_current_view();
+      if(current_view->get_token && current_view->get_usages) {
+        auto token=current_view->get_token();
+        if(token) {
+          auto iter=current_view->get_buffer()->get_insert()->get_iter();
+          Gdk::Rectangle visible_rect;
+          current_view->get_visible_rect(visible_rect);
+          Gdk::Rectangle iter_rect;
+          current_view->get_iter_location(iter, iter_rect);
+          iter_rect.set_width(1);
+          if(!visible_rect.intersects(iter_rect)) {
+            current_view->get_iter_at_location(iter, 0, visible_rect.get_y()+visible_rect.get_height()/3);
+          }
+          current_view->selection_dialog=std::unique_ptr<SelectionDialog>(new SelectionDialog(*current_view, current_view->get_buffer()->create_mark(iter), true, true));
+          auto rows=std::make_shared<std::unordered_map<std::string, Source::Offset> >();
+          
+          //First add usages in current file
+          auto usages=current_view->get_usages(token);
+          for(auto &usage: usages) {
+            auto iter=current_view->get_buffer()->get_iter_at_line_index(usage.first.line, usage.first.index);
+            auto row=std::to_string(iter.get_line()+1)+':'+std::to_string(iter.get_line_offset()+1)+' '+usage.second;
+            (*rows)[row]=usage.first;
+            current_view->selection_dialog->add_row(row);
+          }
+          //Then the remaining opened files
+          for(int page=0;page<notebook.size();page++) {
+            auto view=notebook.get_view(page);
+            if(view!=current_view) {
+              if(view->get_usages) {
+                auto usages=view->get_usages(token);
+                for(auto &usage: usages) {
+                  auto iter=view->get_buffer()->get_iter_at_line_index(usage.first.line, usage.first.index);
+                  auto row=usage.first.file_path.filename().string()+":"+std::to_string(iter.get_line()+1)+':'+std::to_string(iter.get_line_offset()+1)+' '+usage.second;
+                  (*rows)[row]=usage.first;
+                  current_view->selection_dialog->add_row(row);
+                }
+              }
+            }
+          }
+          
+          if(rows->size()==0)
+            return;
+          current_view->selection_dialog->on_select=[this, rows](const std::string& selected, bool hide_window) {
+            auto offset=rows->at(selected);
+            boost::filesystem::path declaration_file;
+            boost::system::error_code ec;
+            declaration_file=boost::filesystem::canonical(offset.file_path, ec);
+            if(ec)
+              declaration_file=offset.file_path;
+            notebook.open(declaration_file);
+            auto view=notebook.get_current_view();
+            view->get_buffer()->place_cursor(view->get_buffer()->get_iter_at_line_index(offset.line, offset.index));
+            view->scroll_to(view->get_buffer()->get_insert(), 0.0, 1.0, 0.5);
+            view->delayed_tooltips_connection.disconnect();
+          };
+          current_view->selection_dialog->show();
         }
       }
     }
@@ -429,9 +502,16 @@ void Window::set_menu_actions() {
   });
   
   menu->add_action("compile_and_run", [this]() {
-    if(notebook.get_current_page()==-1 || compiling)
+    if(compiling)
       return;
-    CMake cmake(notebook.get_current_view()->file_path);
+    boost::filesystem::path cmake_path;
+    if(notebook.get_current_page()!=-1)
+      cmake_path=notebook.get_current_view()->file_path.parent_path();
+    else
+      cmake_path=Singleton::directories->current_path;
+    if(cmake_path.empty())
+      return;
+    CMake cmake(cmake_path);
     auto executables = cmake.get_functions_parameters("add_executable");
     boost::filesystem::path executable_path;
     if(executables.size()>0 && executables[0].second.size()>0) {
@@ -469,9 +549,16 @@ void Window::set_menu_actions() {
     }
   });
   menu->add_action("compile", [this]() {
-    if(notebook.get_current_page()==-1 || compiling)
+    if(compiling)
       return;
-    CMake cmake(notebook.get_current_view()->file_path);
+    boost::filesystem::path cmake_path;
+    if(notebook.get_current_page()!=-1)
+      cmake_path=notebook.get_current_view()->file_path.parent_path();
+    else
+      cmake_path=Singleton::directories->current_path;
+    if(cmake_path.empty())
+      return;
+    CMake cmake(cmake_path);
     if(cmake.project_path!="") {
       compiling=true;
       Singleton::terminal->print("Compiling project "+cmake.project_path.string()+"\n");
@@ -486,21 +573,13 @@ void Window::set_menu_actions() {
     entry_box.labels.emplace_back();
     auto label_it=entry_box.labels.begin();
     label_it->update=[label_it](int state, const std::string& message){
-      label_it->set_text("Run Command directory order: file project path, file directory, opened directory, current directory");
+      label_it->set_text("Run Command directory order: file project path, opened directory, current directory");
     };
     label_it->update(0, "");
     entry_box.entries.emplace_back(last_run_command, [this](const std::string& content){
       if(content!="") {
         last_run_command=content;
-        boost::filesystem::path run_path;
-        if(notebook.get_current_page()!=-1) {
-          if(notebook.get_current_view()->project_path!="")
-            run_path=notebook.get_current_view()->project_path;
-          else
-            run_path=notebook.get_current_view()->file_path.parent_path();
-        }
-        else
-          run_path=Singleton::directories->current_path;
+        auto run_path=notebook.get_current_folder();
         Singleton::terminal->async_print("Running: "+content+'\n');
   
         Singleton::terminal->async_execute(content, run_path, [this, content](int exit_code){
@@ -559,6 +638,7 @@ void Window::activate_menu_items(bool activate) {
   menu->actions["source_indentation_auto_indent_buffer"]->set_enabled(activate ? static_cast<bool>(notebook.get_current_view()->auto_indent) : false);
   menu->actions["source_find_documentation"]->set_enabled(activate ? static_cast<bool>(notebook.get_current_view()->get_token_data) : false);
   menu->actions["source_goto_declaration"]->set_enabled(activate ? static_cast<bool>(notebook.get_current_view()->get_declaration_location) : false);
+  menu->actions["source_goto_usage"]->set_enabled(activate ? static_cast<bool>(notebook.get_current_view()->get_usages) : false);
   menu->actions["source_goto_method"]->set_enabled(activate ? static_cast<bool>(notebook.get_current_view()->goto_method) : false);
   menu->actions["source_rename"]->set_enabled(activate ? static_cast<bool>(notebook.get_current_view()->rename_similar_tokens) : false);
   menu->actions["source_goto_next_diagnostic"]->set_enabled(activate ? static_cast<bool>(notebook.get_current_view()->goto_next_diagnostic) : false);
@@ -596,22 +676,17 @@ bool Window::on_key_press_event(GdkEventKey *event) {
   }
 #endif
 
-  return Gtk::Window::on_key_press_event(event);
+  return Gtk::ApplicationWindow::on_key_press_event(event);
 }
 
-bool Window::on_delete_event (GdkEventAny *event) {
-  hide();
-  return true;
-}
-
-void Window::hide() {
+bool Window::on_delete_event(GdkEventAny *event) {
   auto size=notebook.size();
   for(int c=0;c<size;c++) {
     if(!notebook.close_current_page())
-      return;
+      return true;
   }
   Singleton::terminal->kill_async_executes();
-  Gtk::Window::hide();
+  return false;
 }
 
 void Window::search_and_replace_entry() {
@@ -774,8 +849,8 @@ void Window::goto_line_entry() {
           if(line>0 && line<=buffer->get_line_count()) {
             line--;
             buffer->place_cursor(buffer->get_iter_at_line(line));
-            while(gtk_events_pending())
-              gtk_main_iteration();
+            while(g_main_context_pending(NULL))
+              g_main_context_iteration(NULL, false);
             if(notebook.get_current_page()!=-1)
               notebook.get_current_view()->scroll_to(buffer->get_insert(), 0.0, 1.0, 0.5);
           }
@@ -798,7 +873,7 @@ void Window::rename_token_entry() {
   if(notebook.get_current_page()!=-1) {
     if(notebook.get_current_view()->get_token) {
       auto token=std::make_shared<Source::Token>(notebook.get_current_view()->get_token());
-      if(token) {
+      if(*token) {
         entry_box.labels.emplace_back();
         auto label_it=entry_box.labels.begin();
         label_it->update=[label_it](int state, const std::string& message){

@@ -91,7 +91,7 @@ Source::View::View(const boost::filesystem::path &file_path, const boost::filesy
   }
   else {
     if(filesystem::read(file_path, get_buffer())==-1)
-      Singleton::terminal->print("Error: "+file_path.string()+" is not a valid UTF-8 file.\n");
+      Singleton::terminal->print("Error: "+file_path.string()+" is not a valid UTF-8 file.\n", true);
   }
   get_source_buffer()->end_not_undoable_action();
   
@@ -304,7 +304,7 @@ void Source::View::configure() {
     if(scheme)
       get_source_buffer()->set_style_scheme(scheme);
     else
-      Singleton::terminal->print("Error: Could not find gtksourceview style: "+Singleton::config->source.style+'\n');
+      Singleton::terminal->print("Error: Could not find gtksourceview style: "+Singleton::config->source.style+'\n', true);
   }
   
   if(Singleton::config->source.wrap_lines)
@@ -371,8 +371,10 @@ void Source::View::configure() {
     note_tag->property_foreground()=style->property_foreground();
   }
     
-  if(Singleton::config->source.spellcheck_language.size()>0)
+  if(Singleton::config->source.spellcheck_language.size()>0) {
     aspell_config_replace(spellcheck_config, "lang", Singleton::config->source.spellcheck_language.c_str());
+    aspell_config_replace(spellcheck_config, "encoding", "utf-8");
+  }
   spellcheck_possible_err=new_aspell_speller(spellcheck_config);
   if(spellcheck_checker!=NULL)
     delete_aspell_speller(spellcheck_checker);
@@ -394,7 +396,7 @@ void Source::View::set_tooltip_events() {
         delayed_tooltips_connection=Glib::signal_timeout().connect([this, x, y]() {
           Tooltips::init();
           Gdk::Rectangle rectangle(x, y, 1, 1);
-          if(source_readable) {
+          if(parsed) {
             show_type_tooltips(rectangle);
             show_diagnostic_tooltips(rectangle);
           }
@@ -424,7 +426,7 @@ void Source::View::set_tooltip_events() {
         rectangle.set_x(location_window_x-2);
         rectangle.set_y(location_window_y);
         rectangle.set_width(5);
-        if(source_readable) {
+        if(parsed) {
           show_type_tooltips(rectangle);
           show_diagnostic_tooltips(rectangle);
         }
@@ -533,10 +535,13 @@ void Source::View::replace_all(const std::string &replacement) {
 void Source::View::paste() {
   std::string text=Gtk::Clipboard::get()->wait_for_text();
   
-  //remove carriage returns (which leads to crash)
-  for(auto it=text.begin();it!=text.end();it++) {
-    if(*it=='\r') {
-      it=text.erase(it);
+  //Replace carriage returns (which leads to crash) with newlines
+  for(size_t c=0;c<text.size();c++) {
+    if(text[c]=='\r') {
+      if((c+1)<text.size() && text[c+1]=='\n')
+        text.replace(c, 2, "\n");
+      else
+        text.replace(c, 1, "\n");
     }
   }
 
@@ -655,6 +660,8 @@ void Source::View::set_info(const std::string &info) {
 }
 
 void Source::View::spellcheck(const Gtk::TextIter& start, const Gtk::TextIter& end) {
+  if(spellcheck_checker==NULL)
+    return;
   auto iter=start;
   while(iter && iter<end) {
     if(is_word_iter(iter)) {
@@ -1238,7 +1245,18 @@ std::pair<Gtk::TextIter, Gtk::TextIter> Source::View::spellcheck_get_word(Gtk::T
 }
 
 void Source::View::spellcheck_word(const Gtk::TextIter& start, const Gtk::TextIter& end) {
-  auto word=get_buffer()->get_text(start, end);
+  auto spellcheck_start=start;
+  auto spellcheck_end=end;
+  if((spellcheck_end.get_offset()-spellcheck_start.get_offset())>=2) {
+    auto last_char=spellcheck_end;
+    last_char.backward_char();
+    if(*spellcheck_start=='\'' && *last_char=='\'') {
+      spellcheck_start.forward_char();
+      spellcheck_end.backward_char();
+    }
+  }
+  
+  auto word=get_buffer()->get_text(spellcheck_start, spellcheck_end);
   if(word.size()>0) {
     auto correct = aspell_speller_check(spellcheck_checker, word.data(), word.bytes());
     if(correct==0)
@@ -1306,7 +1324,7 @@ Source::GenericView::GenericView(const boost::filesystem::path &file_path, const
         boost::property_tree::xml_parser::read_xml(language_file.string(), pt);
       }
       catch(const std::exception &e) {
-        Singleton::terminal->print("Error: error parsing language file "+language_file.string()+": "+e.what()+'\n');
+        Singleton::terminal->print("Error: error parsing language file "+language_file.string()+": "+e.what()+'\n', true);
       }
       bool has_context_class=false;
       parse_language_file(completion_buffer_keywords, has_context_class, pt);

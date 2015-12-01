@@ -26,7 +26,8 @@ if(MSYS)
 endif()
 
 find_package(LibClang REQUIRED)
-find_package(Boost 1.55 COMPONENTS thread log system filesystem REQUIRED)
+
+find_package(Boost 1.54 COMPONENTS thread log regex system filesystem REQUIRED)
 find_package(ASPELL REQUIRED)
 find_package(PythonLibs REQUIRED)
 set(PYBIND11_INCLUDE_DIR ../pybind11/include)
@@ -59,16 +60,17 @@ set(global_libraries
 set(library_files
     api.cc
     api.h
-    python_api.cc
     cmake.cc
     cmake.h
     config.cc
     config.h
+    dialogs.cc
     dialogs.h
     directories.cc
     directories.h
     entrybox.cc
     entrybox.h
+    files.h
     filesystem.cc
     filesystem.h
     juci.cc
@@ -78,6 +80,7 @@ set(library_files
     menu.h
     notebook.cc
     notebook.h
+    python_api.cc
     selectiondialog.cc
     selectiondialog.h
     singletons.cc
@@ -99,20 +102,20 @@ set(library_files
     ../libclangmm/src/CompletionString.cc   
     ../libclangmm/src/Cursor.cc
     ../libclangmm/src/Diagnostic.cc
+    ../libclangmm/src/Diagnostic.cc
     ../libclangmm/src/Index.cc
     ../libclangmm/src/SourceLocation.cc
     ../libclangmm/src/SourceRange.cc
     ../libclangmm/src/Token.cc
     ../libclangmm/src/Tokens.cc
     ../libclangmm/src/TranslationUnit.cc
-    ../libclangmm/src/Utility.cc
-)
+    ../libclangmm/src/Utility.cc)
 
 if(MSYS)
   list(APPEND library_files terminal_win.cc dialogs_win.cc)
-else(MSYS)
-  list(APPEND library_files terminal.cc dialogs.cc)
-endif(MSYS)
+else()
+  list(APPEND library_files terminal_unix.cc dialogs_unix.cc)
+endif()
 
 add_executable(${application_name} main.cc)
 add_library(${library_name} SHARED ${library_files})
@@ -122,3 +125,7 @@ target_link_libraries(${library_name} ${global_libraries})
 target_link_libraries(${application_name} ${library_name})
 set_target_properties(${library_name} PROPERTIES PREFIX "")
 
+install(TARGETS ${application_name} 
+  RUNTIME DESTINATION bin
+  LIBRARY DESTINATION lib
+)

@@ -1,6 +1,8 @@
+#ifndef JUCI_FILES_H_
+#define JUCI_FILES_H_
 #include <string>
 
-#define JUCI_VERSION "0.9.4"
+#define JUCI_VERSION "0.9.6"
 
 const std::string configjson =
 "{\n"
@@ -29,6 +31,8 @@ const std::string configjson =
 "        \"font\": \"Monospace\",\n"
 #endif
 #endif
+"        \"cleanup_whitespace_characters_comment\": \"Remove trailing whitespace characters on save, and add trailing newline if missing\",\n"
+"        \"cleanup_whitespace_characters\": false,\n"
 "        \"show_map\": true,\n"
 "        \"map_font_size\": \"1\",\n"
 "        \"spellcheck_language_comment\": \"Use \\\"\\\" to set language from your locale settings\",\n"
@@ -83,6 +87,7 @@ const std::string configjson =
 "        \"source_center_cursor\": \"<primary>l\",\n"
 "        \"source_find_documentation\": \"<primary><shift>d\",\n"
 "        \"source_goto_declaration\": \"<primary>d\",\n"
+"        \"source_goto_usage\": \"<primary>u\",\n"
 "        \"source_goto_method\": \"<primary>m\",\n"
 "        \"source_rename\": \"<primary>r\",\n"
 "        \"source_goto_next_diagnostic\": \"<primary>e\",\n"
@@ -115,12 +120,6 @@ const std::string configjson =
 "                \"@any\": \"https://www.google.com/search?btnI&q=\"\n"
 "            }\n"
 "        }\n"
-"    },\n"
-"    \"directoryfilter\": {\n"
-"        \"ignore\": [\n"
-"        ],\n"
-"        \"exceptions\": [\n"
-"        ]\n"
 "    }\n"
 "}\n";
 
@@ -376,4 +375,4 @@ const std::string snippetpy =
 "    output=getSnippet(theWord) \n"
 "    juci.replaceWord(output) \n";
 
-
+#endif  // JUCI_FILES_H_

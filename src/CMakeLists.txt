@@ -29,7 +29,7 @@ find_package(LibClang REQUIRED)
 find_package(Boost 1.55 COMPONENTS thread log system filesystem REQUIRED)
 find_package(ASPELL REQUIRED)
 find_package(PythonLibs REQUIRED)
-set(PYBIND11_INCLUDE_DIR "../pybind11/include")
+set(PYBIND11_INCLUDE_DIR ../pybind11/include)
 set(LIBCLANGMM_INCLUDE_DIR ../libclangmm/src)
 
 include(FindPkgConfig)

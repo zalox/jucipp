@@ -29,8 +29,6 @@ Window::Window() : compiling(false) {
   configure();
   set_default_size(Singleton::config->window.default_size.first, Singleton::config->window.default_size.second);
   
-  //PluginApi(&this->notebook, &this->menu);
-  
   add(vpaned);
   
   directory_and_notebook_panes.pack1(*Singleton::directories, Gtk::SHRINK);
@@ -530,9 +528,7 @@ void Window::set_menu_actions() {
 //    if(notebook.get_current_page()!=-1) {
 //      notebook.open(notebook.get_view((notebook.get_current_page()+1)%notebook.size())->file_path);
 //    }
-  
-    Singleton::python_interpreter->import("test");
-    auto res = Singleton::python_interpreter->exec("test.test", {pybind11::str("/home/")});
+    Singleton::python_interpreter->init();
   });
   menu->add_action("previous_tab", [this]() {
     if(notebook.get_current_page()!=-1) {

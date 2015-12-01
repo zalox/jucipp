@@ -1,22 +1,24 @@
 #ifndef JUCI_API_H_
 #define JUCI_API_H_
 
-#include <unordered_map>
-#include <string>
-#include <Python.h>
-#include <memory>
 #include <pybind11/pybind11.h>
+#include <memory>
+
+using namespace std;;
+#include <iostream>
 
 class PythonInterpreter {
 public:
   PythonInterpreter();
   ~PythonInterpreter();
-  pybind11::object exec(const std::string &module_name,
-                        std::initializer_list<pybind11::object> args);
-  pybind11::object import(const std::string &module_name);
-
+  void append_path(const std::wstring &path);
+  bool import(const std::string &module_name);
+  template <class... Args>
+  pybind11::handle exec(const std::string &method_qualifier,
+                        Args &&... args);
+  void init();
 private:
-  std::unordered_map<std::string, pybind11::module> modules;
+  std::unordered_map<std::string, pybind11::handle> modules;
 };
 
 

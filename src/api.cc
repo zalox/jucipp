@@ -1,54 +1,65 @@
 #include "api.h"
-#include <pybind11/pybind11.h>
 #include "singletons.h"
 
 PythonInterpreter::PythonInterpreter() {
-  if (!Py_IsInitialized()) {
-    Py_Initialize();
-  }
-  import("sys");
-  exec("sys.path.append", {pybind11::str((Singleton::config->juci_home_path() / "plugins").c_str())});
+  append_path(L"/home/zalox/projects/juci/src/");
+  append_path((Singleton::config->juci_home_path()/"plugins").wstring());
+  Py_Initialize();
+}
+
+void PythonInterpreter::init() {
+  import("juciplugin");
+  exec("juciplugin.open", "/home/");
 }
 
 PythonInterpreter::~PythonInterpreter() {
-  if (Py_IsInitialized()) {
-    Py_Finalize();
+  for (auto &module : modules) {
+    module.second.dec_ref();
   }
-}
-
-pybind11::object PythonInterpreter::import(const std::string &module_name) {
-  Singleton::terminal->print("importing " + module_name);
-  auto module = pybind11::object(PyImport_ImportModule(module_name.c_str()), false);
-  if (module.ptr() == nullptr) {
-    Singleton::terminal->print("Failed to import " + module_name + "\n");
+  if (PyErr_Occurred() != nullptr)
     PyErr_Print();
-    return pybind11::object();
-  }
-  modules[module_name] = module;
-  return module;
+  Py_Finalize();
 }
 
-pybind11::object PythonInterpreter::exec(const std::string &methodstring,
-                                         std::initializer_list<pybind11::object> args = {}) {
-  Singleton::terminal->print("Executing: " + methodstring);
-  auto module_name = methodstring.substr(0, methodstring.find('.'));
-  auto method = methodstring.substr(module_name.length(), methodstring.size());
+void PythonInterpreter::append_path(const std::wstring &path) {
+  std::wstring res(path);
+#ifdef _WIN32
+  res += ';';
+#else
+  res += ':';
+#endif
+  res += Py_GetPath();
+  Py_SetPath(res.c_str());
+}
+
+bool PythonInterpreter::import(const std::string &module_name) {
+  pybind11::str str(module_name.c_str());
+  auto module = pybind11::handle(PyImport_Import(str.ptr()));
+  if (module) {
+    module.inc_ref();
+    modules[module_name] = module;
+    return true;
+  }
+  PyErr_Print();
+  return false;
+}
+template <class... Args>
+pybind11::handle PythonInterpreter::exec(const std::string &method_qualifier,
+					 Args &&... args) {
+  auto pos = method_qualifier.rfind('.');
+  if (pos == std::string::npos) {
+    cerr << "Method <module>.<submodule (optional)>.<method>" << endl;
+  }
+  auto module_name = method_qualifier.substr(0, pos);
+  auto method = method_qualifier.substr(module_name.length()+1, method_qualifier.size());
   auto module = modules.find(module_name);
   if (module == modules.end()) {
-    Singleton::terminal->print("Method string not executed:" + methodstring);
-  } else {
-    auto func = pybind11::object(PyObject_GetAttrString(module->second.ptr(), method.c_str()), false);
-    if (func.ptr() && PyCallable_Check(func.ptr())) {
-      pybind11::tuple tuple(args.size());
-      size_t i = 0;
-      for (auto it = args.begin(); it != args.end(); it++) {
-        pybind11::object arg = *it;
-        tuple[i] = arg;
-        i++;
-      }
-      Singleton::terminal->print("Executed: " + methodstring);
-      return pybind11::object(PyObject_CallObject(func.ptr(), tuple.ptr()), false);
-    }
+    cerr << module_name << " is not found, you should try to import it" << endl;
+    return nullptr;
   }
-  return pybind11::object();
+  auto func = pybind11::handle(module->second.attr(method.c_str()));
+  if (func && PyCallable_Check(func.ptr())) {
+    return func.call(args...);
+  }
+  return nullptr;
 }

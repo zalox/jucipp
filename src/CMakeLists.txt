@@ -125,7 +125,7 @@ target_link_libraries(${library_name} ${global_libraries})
 target_link_libraries(${application_name} ${library_name})
 set_target_properties(${library_name} PROPERTIES PREFIX "")
 
-install(TARGETS ${application_name} 
+install(TARGETS ${application_name} ${library_name}
   RUNTIME DESTINATION bin
   LIBRARY DESTINATION lib
 )

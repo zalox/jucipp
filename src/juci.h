@@ -11,7 +11,9 @@ public:
   int on_command_line(const Glib::RefPtr<Gio::ApplicationCommandLine> &cmd) override;
   void on_activate() override;
   void on_startup() override;
+  int run(int argc, char **argv);
   std::unique_ptr<Window> window;
+  std::vector<std::string> args;
 private:
   std::vector<boost::filesystem::path> directories;
   std::vector<boost::filesystem::path> files;

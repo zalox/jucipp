@@ -105,3 +105,11 @@ Application::Application() : Gtk::Application("no.sout.juci", Gio::APPLICATION_N
   
   window=std::unique_ptr<Window>(new Window());
 }
+
+int Application::run(int argc, char **argv){
+  for(size_t i = 0; i < argc; i++){
+    args.emplace_back(argv[i]);
+  }
+  return Gtk::Application::run(argc, argv);
+}
+

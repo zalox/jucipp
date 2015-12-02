@@ -58,8 +58,6 @@ set(global_libraries
 )
 
 set(library_files
-    api.cc
-    api.h
     cmake.cc
     cmake.h
     config.cc
@@ -81,6 +79,8 @@ set(library_files
     notebook.cc
     notebook.h
     python_api.cc
+    python_interpreter.cc
+    python_interpreter.h
     selectiondialog.cc
     selectiondialog.h
     singletons.cc

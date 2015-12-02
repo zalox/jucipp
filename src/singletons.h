@@ -6,7 +6,7 @@
 #include "terminal.h"
 #include "menu.h"
 #include "config.h"
-#include "api.h"
+#include "python_interpreter.h"
 
 class Singleton {
 public:

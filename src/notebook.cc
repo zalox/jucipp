@@ -40,7 +40,8 @@ int Notebook::size() {
 }
 
 Source::View* Notebook::get_view(int page) {
-  return source_views.at(get_index(page));
+  size_t i = get_index(page);
+  return i!=-1? source_views.at(i) : nullptr;
 }
 
 size_t Notebook::get_index(int page) {
@@ -52,7 +53,8 @@ size_t Notebook::get_index(int page) {
 }
 
 Source::View* Notebook::get_current_view() {
-  return get_view(get_current_page());
+  auto i = get_current_page();
+  return i != -1 ? get_view(i) : nullptr;
 }
 
 void Notebook::open(const boost::filesystem::path &file_path) {

@@ -1,15 +1,26 @@
 #include "api.h"
 #include "singletons.h"
+#include "juci.h"
 
 PythonInterpreter::PythonInterpreter() {
-  append_path(L"/home/zalox/projects/juci/src/");
-  append_path((Singleton::config->juci_home_path()/"plugins").wstring());
-  Py_Initialize();
+  // TODO get argv[0] so we know whether to look for
+  // libjuci in usr/lib or in ./src/
 }
 
 void PythonInterpreter::init() {
-  import("juciplugin");
-  exec("juciplugin.open", "/home/");
+  auto g_application = g_application_get_default();
+  auto gio_application = Glib::wrap(g_application, true);
+  auto application = Glib::RefPtr<Application>::cast_static(gio_application);
+  auto executable = application->args[0];
+  if (executable == "juci")
+    append_path(L"/usr/lib/");
+  else {
+    boost::filesystem::path path(executable);
+    append_path(path.parent_path().wstring());
+  }
+  auto plugin_path = Singleton::config->juci_home_path() / "plugins";
+  append_path(plugin_path.wstring());
+  Py_Initialize();
 }
 
 PythonInterpreter::~PythonInterpreter() {
@@ -18,7 +29,8 @@ PythonInterpreter::~PythonInterpreter() {
   }
   if (PyErr_Occurred() != nullptr)
     PyErr_Print();
-  Py_Finalize();
+  if (Py_IsInitialized())
+    Py_Finalize();
 }
 
 void PythonInterpreter::append_path(const std::wstring &path) {
@@ -45,13 +57,13 @@ bool PythonInterpreter::import(const std::string &module_name) {
 }
 template <class... Args>
 pybind11::handle PythonInterpreter::exec(const std::string &method_qualifier,
-					 Args &&... args) {
+                                         Args &&... args) {
   auto pos = method_qualifier.rfind('.');
   if (pos == std::string::npos) {
     cerr << "Method <module>.<submodule (optional)>.<method>" << endl;
   }
   auto module_name = method_qualifier.substr(0, pos);
-  auto method = method_qualifier.substr(module_name.length()+1, method_qualifier.size());
+  auto method = method_qualifier.substr(module_name.length() + 1, method_qualifier.size());
   auto module = modules.find(module_name);
   if (module == modules.end()) {
     cerr << module_name << " is not found, you should try to import it" << endl;

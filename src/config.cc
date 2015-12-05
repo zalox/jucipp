@@ -50,7 +50,7 @@ void Config::load() {
 void Config::find_or_create_config_files() {
   auto config_dir = home/"config";
   auto config_json = config_dir/"config.json";
-  auto plugins_py = config_dir/"plugins.py";
+  auto plugins_py = home/"plugins"/"toolsplugin.py";
 
   boost::filesystem::create_directories(config_dir); // io exp captured by calling method
 

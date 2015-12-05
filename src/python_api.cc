@@ -53,6 +53,15 @@ PYBIND_PLUGIN(libjuci) {
   m.def("add_menu_element", [](const char *json) {
     Singleton::menu->plugin_entries.emplace_back(json);
   }, "menu_item is menu-descripting string, action is a fully qualified definition");
+  
+  m.def("get_project_folder", []() {
+    return Singleton::directories->cmake->project_path.string();
+  }, "gets the current open folder");
+  
+  m.def("get_juci_home", []() {
+    return Singleton::config->juci_home_path().string();
+  }, "gets juci settings folder");
+  
 
   return m.ptr();
 }

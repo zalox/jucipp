@@ -15,9 +15,10 @@ Menu::Entry::Entry(const std::string &json) {
       auto label = elem.second.get<std::string>("label", "");
       auto accel = elem.second.get<std::string>("keybinding", "");
       auto action = elem.second.get<std::string>("action", "");
-      if(accel.empty() || label.empty())
+      if(label.empty())
         continue;
-      Singleton::config->menu.keys[action] = accel;
+      if(!accel.empty())
+        Singleton::config->menu.keys[action] = accel;
       Singleton::menu->add_action(action, [action]() {
        Singleton::python_interpreter->exec(action);
       });
@@ -28,9 +29,10 @@ Menu::Entry::Entry(const std::string &json) {
           auto label = item.second.get<std::string>("label", "");
           auto accel = item.second.get<std::string>("keybinding", "");
           auto action = item.second.get<std::string>("action", "");
-          if(accel.empty() || label.empty())
+          if(label.empty())
             continue;
-          Singleton::config->menu.keys[action] = accel;
+          if(!accel.empty())
+            Singleton::config->menu.keys[action] = accel;
           Singleton::menu->add_action(action, [action]() {
             Singleton::python_interpreter->exec(action);
           });

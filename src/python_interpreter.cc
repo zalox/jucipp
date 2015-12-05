@@ -57,6 +57,25 @@ bool PythonInterpreter::import(const std::string &module_name) {
   PyErr_Print();
   return false;
 }
+
+pybind11::handle PythonInterpreter::exec(const std::string &method_qualifier){
+  auto pos = method_qualifier.rfind('.');
+  if (pos == std::string::npos) {
+    return nullptr;
+  }
+  auto module_name = method_qualifier.substr(0, pos);
+  auto method = method_qualifier.substr(module_name.length() + 1, method_qualifier.size());
+  auto module = modules.find(module_name);
+  if (module == modules.end()) {
+    return nullptr;
+  }
+  auto func = pybind11::handle(module->second.attr(method.c_str()));
+  if (func && PyCallable_Check(func.ptr())) {
+    return func.call();
+  }
+  return nullptr;
+}
+
 template <class... Args>
 pybind11::handle PythonInterpreter::exec(const std::string &method_qualifier,
                                          Args &&... args) {

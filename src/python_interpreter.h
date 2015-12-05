@@ -13,6 +13,7 @@ public:
   template <class... Args>
   pybind11::handle exec(const std::string &method_qualifier,
                         Args &&... args);
+  pybind11::handle exec(const std::string &method_qualifier);
   void init();
 private:
   std::unordered_map<std::string, pybind11::handle> modules;

@@ -14,18 +14,26 @@ Menu::Entry::Entry(const std::string &json) {
     if(elem.first == "item"){
       auto label = elem.second.get<std::string>("label", "");
       auto accel = elem.second.get<std::string>("keybinding", "");
+      auto action = elem.second.get<std::string>("action", "");
       if(accel.empty() || label.empty())
         continue;
       Singleton::config->menu.keys[label] = accel;
+      Singleton::menu->add_action(label, [action](){
+        Singleton::python_interpreter->exec(action);
+      });
     }
     if(elem.first == "section"){
       for(auto &item : elem.second){
         if(item.first == "item"){
           auto label = item.second.get<std::string>("label", "");
           auto accel = item.second.get<std::string>("keybinding", "");
+          auto action = item.second.get<std::string>("action", "");
           if(accel.empty() || label.empty())
             continue;
           Singleton::config->menu.keys[label] = accel;
+          Singleton::menu->add_action(action, [this, &action](){
+            Singleton::python_interpreter->exec(action);
+          });
         }
       }
     }

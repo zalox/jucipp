@@ -22,7 +22,7 @@ if(UNIX) #Checking if compiling on Ubuntu that has a buggy menu system
 endif()
 
 if(MSYS)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DJUCI_CMAKE_INSTALL_PREFIX=\\\"${CMAKE_INSTALL_PREFIX}\\\"")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DMSYS_PROCESS_USE_SH -DJUCI_CMAKE_INSTALL_PREFIX=\\\"${CMAKE_INSTALL_PREFIX}\\\"")
 endif()
 
 find_package(LibClang REQUIRED)
@@ -78,6 +78,8 @@ set(library_files
     menu.h
     notebook.cc
     notebook.h
+    process.cc
+    process.h
     python_api.cc
     python_interpreter.cc
     python_interpreter.h
@@ -89,12 +91,13 @@ set(library_files
     source.h
     source_clang.cc
     source_clang.h
+    terminal.cc
     terminal.h
     tooltips.cc
     tooltips.h
     window.cc
     window.h
-    
+
     ../libclangmm/src/CodeCompleteResults.cc
     ../libclangmm/src/CompilationDatabase.cc
     ../libclangmm/src/CompileCommand.cc     
@@ -112,9 +115,9 @@ set(library_files
     ../libclangmm/src/Utility.cc)
 
 if(MSYS)
-  list(APPEND library_files terminal_win.cc dialogs_win.cc)
+  list(APPEND library_files process_win.cc dialogs_win.cc)
 else()
-  list(APPEND library_files terminal_unix.cc dialogs_unix.cc)
+  list(APPEND library_files process_unix.cc dialogs_unix.cc)
 endif()
 
 add_executable(${application_name} main.cc)

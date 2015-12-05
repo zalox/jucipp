@@ -49,6 +49,10 @@ PYBIND_PLUGIN(libjuci) {
   m.def("terminal_print", [](const char *message) {
     return Singleton::terminal->print(message);
   });
-  
+
+  m.def("add_menu_element", [](const char *json) {
+    Singleton::menu->plugin_entries.emplace_back(json);
+  }, "menu_item is menu-descripting string, action is a fully qualified definition");
+
   return m.ptr();
 }

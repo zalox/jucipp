@@ -604,10 +604,9 @@ void Window::set_menu_actions() {
   });
   
   menu->add_action("next_tab", [this]() {
-//    if(notebook.get_current_page()!=-1) {
-//      notebook.open(notebook.get_view((notebook.get_current_page()+1)%notebook.size())->file_path);
-//    }
-    Singleton::python_interpreter->init();
+    if(notebook.get_current_page()!=-1) {
+      notebook.open(notebook.get_view((notebook.get_current_page()+1)%notebook.size())->file_path);
+    }
   });
   menu->add_action("previous_tab", [this]() {
     if(notebook.get_current_page()!=-1) {

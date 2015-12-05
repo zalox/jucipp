@@ -79,6 +79,7 @@ void Application::on_activate() {
 
 void Application::on_startup() {
   Gtk::Application::on_startup();
+  Singleton::python_interpreter->init();
   Singleton::menu->init();
   Singleton::menu->build();
 

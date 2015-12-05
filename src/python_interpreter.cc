@@ -21,6 +21,11 @@ void PythonInterpreter::init() {
   auto plugin_path = Singleton::config->juci_home_path() / "plugins";
   append_path(plugin_path.wstring());
   Py_Initialize();
+  boost::filesystem::directory_iterator end_it;
+  for(boost::filesystem::directory_iterator it(plugin_path);it!=end_it;it++) {
+    auto module_name = it->path().stem().string();
+    import(module_name);
+  }
 }
 
 PythonInterpreter::~PythonInterpreter() {

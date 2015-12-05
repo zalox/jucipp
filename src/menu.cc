@@ -1,13 +1,60 @@
-#include "menu.h"
-#include "singletons.h"
 #include <string>
 #include <iostream>
+#include <boost/property_tree/xml_parser.hpp>
+#include "menu.h"
+#include "singletons.h"
 
-using namespace std; //TODO: remove
+Menu::Menu(){}
 
-Menu::Menu() {
+Menu::Entry::Entry(const std::string &json) {
+  std::stringstream ss;
+  ss << json;
+  boost::property_tree::read_json(ss, ptree);
+  for(auto &elem : ptree.get_child("sections")) {
+    if(elem.first == "item"){
+      auto label = elem.second.get<std::string>("label", "");
+      auto accel = elem.second.get<std::string>("keybinding", "");
+      if(accel.empty() || label.empty())
+        continue;
+      Singleton::config->menu.keys[label] = accel;
+    }
+    if(elem.first == "section"){
+      for(auto &item : elem.second){
+        if(item.first == "item"){
+          auto label = item.second.get<std::string>("label", "");
+          auto accel = item.second.get<std::string>("keybinding", "");
+          if(accel.empty() || label.empty())
+            continue;
+          Singleton::config->menu.keys[label] = accel;
+        }
+      }
+    }
+  }
 }
 
+boost::property_tree::ptree Menu::Generator::generate_submenu(const std::string &label){
+  boost::property_tree::ptree ptree;
+  std::stringstream ss;
+  std::string element(
+      "<attribute name='label' translatable='yes'>"+label+"</attribute>"
+  );
+  ss << element;
+  boost::property_tree::read_xml(ss, ptree);
+  return ptree;
+}
+
+boost::property_tree::ptree Menu::Generator::generate_item(const std::string &label, const std::string &action, const std::string &accel){
+  boost::property_tree::ptree ptree;
+  std::stringstream ss;
+  std::string item(
+    "<attribute name='label' translatable='yes'>"+label+"</attribute>"
+    "<attribute name='action'>app."+action+"</attribute>"
+     +accel //For Ubuntu...
+  );
+  ss << item;
+  boost::property_tree::read_xml(ss, ptree);
+  return ptree;
+}
 //TODO: if Ubuntu ever gets fixed, move to constructor, also cleanup the rest of the Ubuntu specific code
 void Menu::init() {
   auto accels=Singleton::config->menu.keys;
@@ -31,9 +78,9 @@ void Menu::init() {
 #else
     accel.second="";
 #endif
-  }
-  
+ }
   ui_xml =
+  "<?xml version='1.0' encoding='utf-8'?>"
   "<interface>"
   "  <menu id='juci-menu'>"
   "    <section>"
@@ -48,19 +95,19 @@ void Menu::init() {
   "        <attribute name='label' translatable='yes'>_Preferences</attribute>"
   "        <attribute name='action'>app.preferences</attribute>"
            +accels["preferences"]+ //For Ubuntu...
-  "      </item>"  
+  "      </item>"
   "    </section>"
   "    <section>"
   "      <item>"
   "        <attribute name='label' translatable='yes'>_Quit</attribute>"
   "        <attribute name='action'>app.quit</attribute>"
            +accels["quit"]+ //For Ubuntu...
-  "      </item>"  
+  "      </item>"
   "    </section>"
   "  </menu>"
   ""
   "  <menu id='window-menu'>"
-  "    <submenu>"
+  "    <submenu id='file'>"
   "      <attribute name='label' translatable='yes'>_File</attribute>"
   "      <section>"
   "        <item>"
@@ -108,7 +155,7 @@ void Menu::init() {
   "      </section>"
   "    </submenu>"
   ""
-  "    <submenu>"
+  "    <submenu id='edit'>"
   "      <attribute name='label' translatable='yes'>_Edit</attribute>"
   "      <section>"
   "        <item>"
@@ -148,10 +195,10 @@ void Menu::init() {
   "      </section>"
   "    </submenu>"
   ""
-  "    <submenu>"
+  "    <submenu id='source'>"
   "      <attribute name='label' translatable='yes'>_Source</attribute>"
   "      <section>"
-  "        <submenu>"
+  "        <submenu id='spellcheck'>"
   "          <attribute name='label' translatable='yes'>_Spell _Check</attribute>"
   "          <item>"
   "            <attribute name='label' translatable='yes'>_Spell _Check _Buffer</attribute>"
@@ -171,7 +218,7 @@ void Menu::init() {
   "        </submenu>"
   "      </section>"
   "      <section>"
-  "        <submenu>"
+  "        <submenu id='indentation'>"
   "          <attribute name='label' translatable='yes'>_Indentation</attribute>"
   "          <item>"
   "            <attribute name='label' translatable='yes'>_Set _Current _Buffer _Tab</attribute>"
@@ -240,7 +287,7 @@ void Menu::init() {
   "      </section>"
   "    </submenu>"
   ""
-  "    <submenu>"
+  "    <submenu id='project'>"
   "      <attribute name='label' translatable='yes'>_Project</attribute>"
   "      <section>"
   "        <item>"
@@ -273,7 +320,7 @@ void Menu::init() {
   "      </section>"
   "    </submenu>"
   ""
-  "    <submenu>"
+  "    <submenu id='window'>"
   "      <attribute name='label' translatable='yes'>_Window</attribute>"
   "      <section>"
   "        <item>"
@@ -297,13 +344,75 @@ void Menu::init() {
   "    </submenu>"
   "  </menu>"
   "</interface>";
-}
+  // add plugin menu items
+  std::stringstream ss;
+  ss << ui_xml;
+  boost::property_tree::ptree ptree;
+  boost::property_tree::read_xml(ss, ptree, boost::property_tree::xml_parser::trim_whitespace);
+  auto &interface = ptree.get_child("interface");
+  auto menu_range = interface.equal_range("menu");
+  boost::property_tree::ptree *menu = nullptr;
+  for(auto &it = menu_range.first; it!=menu_range.second; it++){
+    if((it->second.get_child("<xmlattr>.id")).get_value<std::string>() == "window-menu"){
+      menu = &it->second;
+    }   
+  }
+  Generator g;
+  auto submenus = menu->equal_range("submenu");
+  for (auto &entry : plugin_entries) {
+    auto &json = entry.ptree;
+    auto main_menu = json.get<std::string>("main_menu", "");
+    if(main_menu.empty()) {
+      Singleton::terminal->print("main_menu is empty");
+      continue;
+    }
+    boost::property_tree::ptree *add_into = nullptr;
+    for(auto &it = submenus.first; it!=submenus.second; ++it){
+      auto label = (it->second.get_child("attribute")).get_value<std::string>();
+      Singleton::terminal->print(label + "\n");
+      if(main_menu == label)
+        add_into = &it->second;
+    }
+    if(add_into == nullptr)
+      add_into = &menu->add_child("submenu", g.generate_submenu(main_menu));
+    for(auto &elem : json.get_child("sections")){
+      if(elem.first == "item") {
+        Singleton::terminal->print("Adding item \n");
+        auto label = elem.second.get<std::string>("label", "");
+        auto action = elem.second.get<std::string>("action", "");
+        if (!label.empty() && !action.empty()){
+          add_into->add_child("item", g.generate_item(label, action, accels[label]));
+        }
+      } else if(elem.first == "submenu") {
+        auto label = elem.second.get<std::string>("label", "");
+        if(label.empty())
+          continue;
+        auto &submenu = add_into->add_child("submenu", g.generate_submenu(label));
+        for(auto &subelem : elem.second.get_child("sections")){
+          if(subelem.first == "item") {
+            Singleton::terminal->print("adding item \n");
+            auto label = subelem.second.get<std::string>("label", "");
+            auto action = subelem.second.get<std::string>("action", "");
+            if (!label.empty() && !action.empty()){
+              submenu.add_child("item", g.generate_item(label, action, accels[label]));
+            }
+        }
+      }
+    }
+  }
+  }
+  ui_xml.clear();
+  ss = std::stringstream();
+  boost::property_tree::write_xml(ss, ptree, boost::property_tree::xml_parser::trim_whitespace);
+  ui_xml = ss.str();
+  menu = nullptr;
+ }
 
 void Menu::add_action(const std::string &name, std::function<void()> action) {
   auto g_application=g_application_get_default();
   auto gio_application=Glib::wrap(g_application, true);
   auto application=Glib::RefPtr<Gtk::Application>::cast_static(gio_application);
-  
+
   actions[name]=application->add_action(name, action);
 }
 
@@ -311,11 +420,11 @@ void Menu::set_keys() {
   auto g_application=g_application_get_default();
   auto gio_application=Glib::wrap(g_application, true);
   auto application=Glib::RefPtr<Gtk::Application>::cast_static(gio_application);
-           
+
   for(auto &key: Singleton::config->menu.keys) {
     if(key.second.size()>0 && actions.find(key.first)!=actions.end()) {
 #if GTK_VERSION_GE(3, 12)
-      application->set_accel_for_action("app."+key.first, key.second); 
+      application->set_accel_for_action("app."+key.first, key.second);
 #else
       application->add_accelerator(key.second, "app."+key.first); //For Ubuntu 14...
 #endif
@@ -325,7 +434,7 @@ void Menu::set_keys() {
 
 void Menu::build() {
   builder = Gtk::Builder::create();
-  
+
   try {
     builder->add_from_string(ui_xml);
   }

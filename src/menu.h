@@ -4,6 +4,7 @@
 #include <string>
 #include <unordered_map>
 #include <gtkmm.h>
+#include <boost/property_tree/ptree.hpp>
 
 class Menu {
 public:
@@ -18,5 +19,23 @@ public:
   Glib::RefPtr<Gtk::Builder> builder;
   
   std::string ui_xml;
+  
+  class Generator {
+      public:
+        boost::property_tree::ptree generate_submenu(const std::string &label);
+        boost::property_tree::ptree generate_item(const std::string &label, const std::string &action, const std::string &accel);
+  };
+  
+  class Entry {
+  public:
+      Entry(const std::string &json);
+      boost::property_tree::ptree ptree;
+  };
+  
+  std::vector<Entry> plugin_entries;
 };
+
+
+
+
 #endif  // JUCI_MENU_H_

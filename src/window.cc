@@ -237,6 +237,9 @@ void Window::set_menu_actions() {
               notebook.configure(c);
             }
           }
+          if(notebook.get_current_view()->file_path.parent_path()==Singleton::config->juci_home_path()/"plugins") {
+            Singleton::python_interpreter->import(notebook.get_current_view()->file_path.stem().string());
+          }
         }
       }
     }

@@ -48,14 +48,28 @@ void PythonInterpreter::append_path(const std::wstring &path) {
 
 bool PythonInterpreter::import(const std::string &module_name) {
   pybind11::str str(module_name.c_str());
-  auto module = pybind11::handle(PyImport_Import(str.ptr()));
-  if (module) {
-    module.inc_ref();
-    modules[module_name] = module;
-    return true;
+  auto module = modules.find(module_name);
+  if(module == modules.end()) {
+    pybind11::handle new_module(PyImport_ImportModule(module_name.c_str()));
+    if (new_module) {
+      modules[module_name] = new_module;
+      return true;
+    }
+    PyErr_Print();
+    Singleton::terminal->print("Error while loading plugin "+module_name+", check syntax");
+    return false;
+  } else {
+    pybind11::handle reload_module(PyImport_ReloadModule(module->second.ptr()));
+    if(reload_module){
+      modules[module_name] = reload_module;
+      module->second.dec_ref();
+      return true;
+    } else {
+      PyErr_Print();
+      Singleton::terminal->print("Error while reloading plugin "+module_name+", check syntax");
+      return false;
+    }
   }
-  PyErr_Print();
-  return false;
 }
 
 pybind11::handle PythonInterpreter::exec(const std::string &method_qualifier){

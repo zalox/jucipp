@@ -2,10 +2,7 @@
 #include "singletons.h"
 #include "juci.h"
 
-PythonInterpreter::PythonInterpreter() {
-  // TODO get argv[0] so we know whether to look for
-  // libjuci in usr/lib or in ./src/
-}
+PythonInterpreter::PythonInterpreter() {}
 
 void PythonInterpreter::init() {
   auto g_application = g_application_get_default();
@@ -65,18 +62,17 @@ pybind11::handle PythonInterpreter::exec(const std::string &method_qualifier,
                                          Args &&... args) {
   auto pos = method_qualifier.rfind('.');
   if (pos == std::string::npos) {
-    cerr << "Method <module>.<submodule (optional)>.<method>" << endl;
+    return nullptr;
   }
   auto module_name = method_qualifier.substr(0, pos);
   auto method = method_qualifier.substr(module_name.length() + 1, method_qualifier.size());
   auto module = modules.find(module_name);
   if (module == modules.end()) {
-    cerr << module_name << " is not found, you should try to import it" << endl;
     return nullptr;
   }
   auto func = pybind11::handle(module->second.attr(method.c_str()));
   if (func && PyCallable_Check(func.ptr())) {
-    return func.call(args...);
+    return func.call(std::forward<Args>(args)...);
   }
   return nullptr;
 }

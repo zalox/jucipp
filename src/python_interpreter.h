@@ -4,9 +4,6 @@
 #include <pybind11/pybind11.h>
 #include <memory>
 
-using namespace std;;
-#include <iostream>
-
 class PythonInterpreter {
 public:
   PythonInterpreter();

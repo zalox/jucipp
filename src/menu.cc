@@ -363,13 +363,12 @@ void Menu::init() {
     auto &json = entry.ptree;
     auto main_menu = json.get<std::string>("main_menu", "");
     if(main_menu.empty()) {
-      Singleton::terminal->print("main_menu is empty");
+      Singleton::terminal->print("Could't parse json, main_menu element missing");
       continue;
     }
     boost::property_tree::ptree *add_into = nullptr;
     for(auto &it = submenus.first; it!=submenus.second; ++it){
       auto label = (it->second.get_child("attribute")).get_value<std::string>();
-      Singleton::terminal->print(label + "\n");
       if(main_menu == label)
         add_into = &it->second;
     }
@@ -377,11 +376,12 @@ void Menu::init() {
       add_into = &menu->add_child("submenu", g.generate_submenu(main_menu));
     for(auto &elem : json.get_child("sections")){
       if(elem.first == "item") {
-        Singleton::terminal->print("Adding item \n");
         auto label = elem.second.get<std::string>("label", "");
         auto action = elem.second.get<std::string>("action", "");
         if (!label.empty() && !action.empty()){
           add_into->add_child("item", g.generate_item(label, action, accels[label]));
+        } else {
+          Singleton::terminal->print("Could not parse json, item has no action or label");
         }
       } else if(elem.first == "submenu") {
         auto label = elem.second.get<std::string>("label", "");
@@ -390,11 +390,12 @@ void Menu::init() {
         auto &submenu = add_into->add_child("submenu", g.generate_submenu(label));
         for(auto &subelem : elem.second.get_child("sections")){
           if(subelem.first == "item") {
-            Singleton::terminal->print("adding item \n");
             auto label = subelem.second.get<std::string>("label", "");
             auto action = subelem.second.get<std::string>("action", "");
             if (!label.empty() && !action.empty()){
               submenu.add_child("item", g.generate_item(label, action, accels[label]));
+            } else {
+              Singleton::terminal->print("Could not parse json, submenu item has no action or label");
             }
         }
       }

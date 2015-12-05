@@ -66,6 +66,7 @@ bool PythonInterpreter::import(const std::string &module_name) {
       return true;
     } else {
       PyErr_Print();
+      reload_module.dec_ref();
       Singleton::terminal->print("Error while reloading plugin "+module_name+", check syntax");
       return false;
     }

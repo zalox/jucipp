@@ -20,7 +20,8 @@ Menu::Entry::Entry(const std::string &json) {
       if(!accel.empty())
         Singleton::config->menu.keys[action] = accel;
       Singleton::menu->add_action(action, [action]() {
-       Singleton::python_interpreter->exec(action);
+        auto res = Singleton::python_interpreter->exec(action);
+        res.dec_ref();
       });
     }
     if(elem.first == "section"){
@@ -34,7 +35,8 @@ Menu::Entry::Entry(const std::string &json) {
           if(!accel.empty())
             Singleton::config->menu.keys[action] = accel;
           Singleton::menu->add_action(action, [action]() {
-            Singleton::python_interpreter->exec(action);
+            auto res = Singleton::python_interpreter->exec(action);
+            res.dec_ref();
           });
         }
       }

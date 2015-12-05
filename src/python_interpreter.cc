@@ -86,8 +86,11 @@ pybind11::handle PythonInterpreter::exec(const std::string &method_qualifier){
   }
   auto func = pybind11::handle(module->second.attr(method.c_str()));
   if (func && PyCallable_Check(func.ptr())) {
-    return func.call();
+    auto obj = func.call();
+    func.dec_ref();
+    return obj;
   }
+  func.dec_ref();
   return nullptr;
 }
 
@@ -106,7 +109,10 @@ pybind11::handle PythonInterpreter::exec(const std::string &method_qualifier,
   }
   auto func = pybind11::handle(module->second.attr(method.c_str()));
   if (func && PyCallable_Check(func.ptr())) {
-    return func.call(std::forward<Args>(args)...);
+    auto obj = func.call(std::forward<Args>(args)...);
+    func.dec_ref();
+    return obj;
   }
+  func.dec_ref();
   return nullptr;
 }

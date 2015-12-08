@@ -77,17 +77,21 @@ bool PythonInterpreter::import(const std::string &module_name) {
   } else {
     pybind11::handle reload_module(PyImport_ReloadModule(module->second.ptr()));
     if(reload_module){
-      modules[module_name] = reload_module;
       module->second.dec_ref();
+      modules[module_name] = reload_module;
       return true;
     } else {
       PyErr_Print();
       reload_module.dec_ref();
+      //TODO print syntax errors or add linter to Source::View
       Singleton::terminal->print("Error while reloading plugin "+module_name+", check syntax");
       return false;
     }
   }
 }
+
+using namespace std;
+#include <iostream>
 
 pybind11::handle PythonInterpreter::exec(const std::string &method_qualifier){
   auto pos = method_qualifier.rfind('.');
@@ -100,13 +104,10 @@ pybind11::handle PythonInterpreter::exec(const std::string &method_qualifier){
   if (module == modules.end()) {
     return nullptr;
   }
-  auto func = pybind11::handle(module->second.attr(method.c_str()));
+  pybind11::handle func = module->second.attr(method.c_str());
   if (func && PyCallable_Check(func.ptr())) {
-    auto obj = func.call();
-    func.dec_ref();
-    return obj;
+    return func.call();
   }
-  func.dec_ref();
   return nullptr;
 }
 
@@ -125,10 +126,7 @@ pybind11::handle PythonInterpreter::exec(const std::string &method_qualifier,
   }
   auto func = pybind11::handle(module->second.attr(method.c_str()));
   if (func && PyCallable_Check(func.ptr())) {
-    auto obj = func.call(std::forward<Args>(args)...);
-    func.dec_ref();
-    return obj;
+    return func.call(std::forward<Args>(args)...);
   }
-  func.dec_ref();
   return nullptr;
 }

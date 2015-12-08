@@ -10,7 +10,7 @@ Menu::Entry::Entry(const std::string &json) {
   std::stringstream ss;
   ss << json;
   boost::property_tree::read_json(ss, ptree);
-  for(auto &elem : ptree.get_child("sections")) {
+  for(auto &elem : ptree.get_child("sections")) { //TODO Do this recursive
     if(elem.first == "item"){
       auto label = elem.second.get<std::string>("label", "");
       auto accel = elem.second.get<std::string>("keybinding", "");

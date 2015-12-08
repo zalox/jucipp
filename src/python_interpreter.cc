@@ -7,7 +7,7 @@ PythonInterpreter::PythonInterpreter() {}
 
 void PythonInterpreter::init() {
   auto plugin_path = Singleton::config->juci_home_path() / "plugins";
-  append_path(plugin_path.generic_wstring());
+  append_path(plugin_path);
   PyImport_AppendInittab("libjuci", init_juci_api);
   Py_Initialize();
   boost::filesystem::directory_iterator end_it;
@@ -27,14 +27,19 @@ PythonInterpreter::~PythonInterpreter() {
     Py_Finalize();
 }
 
-void PythonInterpreter::append_path(const std::wstring &path) {
-  std::wstring res(path);
+using namespace std;
+#include <iostream>
+
+void PythonInterpreter::append_path(const boost::filesystem::path &path) {
+  std::wstring res(Py_GetPath());
+  if(!res.empty()) {
 #ifdef _WIN32
   res += ';';
 #else
   res += ':';
 #endif
-  res += Py_GetPath();
+  }
+  res += path.generic_wstring();
   Py_SetPath(res.c_str());
 }
 

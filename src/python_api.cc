@@ -1,12 +1,10 @@
-#include "python_interpreter.h"
-#include <pybind11/pybind11.h>
+#include "python_api.h"
 #include "singletons.h"
 #include "juci.h"
 
-PYBIND_PLUGIN(libjuci) {
-  pybind11::module m("libjuci", "Python API for juCi++");
-
-  m.def("directories_open",
+extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
+  pybind11::module api("libjuci", "Python API for juCi++");
+  api.def("directories_open",
     [] (const char *dir) {
       boost::filesystem::path path(dir);
       if (boost::filesystem::is_directory(path))
@@ -16,7 +14,7 @@ PYBIND_PLUGIN(libjuci) {
     pybind11::arg("str dir")
   );
 
-  m.def("get_highlighted_word",
+  api.def("get_highlighted_word",
     [] () {
       auto g_application = g_application_get_default();
       auto gio_application = Glib::wrap(g_application, true);
@@ -47,16 +45,16 @@ PYBIND_PLUGIN(libjuci) {
       "'type': '-1'"
     "}"
   );
-
-  m.def("terminal_print",
+  
+  api.def("terminal_print",
     [] (const char *message) {
       return Singleton::terminal->print(message);
     },
     "Returns int, Prints 'message' to terminal", //TODO what does the return represent?
     pybind11::arg("str message, add \n for line break")
   );
-
-  m.def("add_menu_element",
+  
+  api.def("add_menu_element",
     [] (const char *json) {
       Singleton::menu->plugin_entries.emplace_back(json);
     },
@@ -64,19 +62,19 @@ PYBIND_PLUGIN(libjuci) {
     pybind11::arg("str json")
   );
   
-  m.def("get_project_folder",
+  api.def("get_project_folder",
     [] () {
       return Singleton::directories->cmake->project_path.string();
     },
     "Returns path of current open directory."
   );
   
-  m.def("get_juci_home",
+  api.def("get_juci_home",
     [] () {
       return Singleton::config->juci_home_path().string();
     },
     "Returns the path of the juci home folder."
   );
- 
-  return m.ptr();
+  
+  return api.ptr();
 }

@@ -117,7 +117,7 @@ set(application_files
     ../libclangmm/src/Utility.cc)
 
 if(MSYS)
-  list(APPEND application_files process_win.cc dialogs_win.cc)
+  list(APPEND application_files process_win.cc dialogs_unix.cc)
 else()
   list(APPEND application_files process_unix.cc dialogs_unix.cc)
 endif()

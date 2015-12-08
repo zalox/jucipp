@@ -3,7 +3,29 @@
 #include "singletons.h"
 #include "juci.h"
 
-PythonInterpreter::PythonInterpreter() {}
+PythonInterpreter::PythonInterpreter() {
+#ifdef _WIN32
+  auto root_path = Singleton::config->juci_home_path();
+  for(size_t i = 0; i < 3; i++) {
+    root_path = root_path.parent_path();
+  }
+  auto p = root_path/"mingw64/lib/python3.5";
+  Py_SetPath(p.generic_wstring().c_str());
+  append_path(root_path/"mingw64/include/python3.5m");
+  Py_Initialize();
+  if(PyErr_Occurred() != nullptr) {
+    auto pp = root_path/"mingw32/lib/python3.5";
+    Py_SetPath(pp.generic_wstring().c_str());
+    append_path(root_path/"mingw32/include/python3.5m");
+    Py_Initialize();
+    if(PyErr_Occurred() == nullptr) {
+      throw std::runtime_error("Couldn't find python libraries");
+    }
+  }
+  PyErr_Clear();
+  Py_Finalize();
+#endif
+}
 
 void PythonInterpreter::init() {
   auto plugin_path = Singleton::config->juci_home_path() / "plugins";
@@ -26,9 +48,6 @@ PythonInterpreter::~PythonInterpreter() {
   if (Py_IsInitialized())
     Py_Finalize();
 }
-
-using namespace std;
-#include <iostream>
 
 void PythonInterpreter::append_path(const boost::filesystem::path &path) {
   std::wstring res(Py_GetPath());

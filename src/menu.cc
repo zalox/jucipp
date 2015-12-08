@@ -361,9 +361,9 @@ void Menu::init() {
   ss << ui_xml;
   boost::property_tree::ptree ptree;
   boost::property_tree::read_xml(ss, ptree, boost::property_tree::xml_parser::trim_whitespace);
-  auto &interface = ptree.get_child("interface");
-  auto menu_range = interface.equal_range("menu");
-  boost::property_tree::ptree *menu = nullptr;
+  auto &iface = ptree.get_child("interface");
+  auto menu_range = iface.equal_range("menu");
+  boost::property_tree::ptree * menu = nullptr;
   for(auto &it = menu_range.first; it!=menu_range.second; it++){
     if((it->second.get_child("<xmlattr>.id")).get_value<std::string>() == "window-menu"){
       menu = &it->second;

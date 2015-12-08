@@ -53,6 +53,7 @@ void Config::find_or_create_config_files() {
   auto plugins_py = home/"plugins"/"toolsplugin.py";
 
   boost::filesystem::create_directories(config_dir); // io exp captured by calling method
+  boost::filesystem::create_directories(home/"plugins");
 
   if (!boost::filesystem::exists(config_json))
     filesystem::write(config_json, configjson); // vars configjson and pluginspy

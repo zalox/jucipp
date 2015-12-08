@@ -1,22 +1,14 @@
 #include "python_interpreter.h"
+#include "python_api.h"
 #include "singletons.h"
 #include "juci.h"
 
 PythonInterpreter::PythonInterpreter() {}
 
 void PythonInterpreter::init() {
-  auto g_application = g_application_get_default();
-  auto gio_application = Glib::wrap(g_application, true);
-  auto application = Glib::RefPtr<Application>::cast_static(gio_application);
-  auto executable = application->args[0];
-  if (executable == "juci")
-    append_path(L"/usr/lib/");
-  else {
-    boost::filesystem::path path(executable);
-    append_path(path.parent_path().wstring());
-  }
   auto plugin_path = Singleton::config->juci_home_path() / "plugins";
-  append_path(plugin_path.wstring());
+  append_path(plugin_path.generic_wstring());
+  PyImport_AppendInittab("libjuci", init_juci_api);
   Py_Initialize();
   boost::filesystem::directory_iterator end_it;
   for(boost::filesystem::directory_iterator it(plugin_path);it!=end_it;it++) {

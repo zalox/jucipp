@@ -57,7 +57,7 @@ set(global_libraries
   ${PYTHON_LIBRARIES}
 )
 
-set(library_files
+set(application_files
     cmake.cc
     cmake.h
     config.cc
@@ -74,6 +74,7 @@ set(library_files
     juci.cc
     juci.h
     logging.h
+    main.cc
     menu.cc
     menu.h
     notebook.cc
@@ -81,6 +82,7 @@ set(library_files
     process.cc
     process.h
     python_api.cc
+    python_api.h
     python_interpreter.cc
     python_interpreter.h
     selectiondialog.cc
@@ -115,20 +117,16 @@ set(library_files
     ../libclangmm/src/Utility.cc)
 
 if(MSYS)
-  list(APPEND library_files process_win.cc dialogs_win.cc)
+  list(APPEND application_files process_win.cc dialogs_win.cc)
 else()
-  list(APPEND library_files process_unix.cc dialogs_unix.cc)
+  list(APPEND application_files process_unix.cc dialogs_unix.cc)
 endif()
 
-add_executable(${application_name} main.cc)
-add_library(${library_name} SHARED ${library_files})
+add_executable(${application_name} ${application_files})
 
 include_directories(${global_includes})
-target_link_libraries(${library_name} ${global_libraries})
-target_link_libraries(${application_name} ${library_name})
-set_target_properties(${library_name} PROPERTIES PREFIX "")
+target_link_libraries(${application_name} ${global_libraries})
 
-install(TARGETS ${application_name} ${library_name}
+install(TARGETS ${application_name}
   RUNTIME DESTINATION bin
-  LIBRARY DESTINATION lib
 )

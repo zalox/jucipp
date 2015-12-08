@@ -6,44 +6,6 @@
 
 Menu::Menu(){}
 
-Menu::Entry::Entry(const std::string &json) {
-  std::stringstream ss;
-  ss << json;
-  boost::property_tree::read_json(ss, ptree);
-  for(auto &elem : ptree.get_child("sections")) { //TODO Do this recursive
-    if(elem.first == "item"){
-      auto label = elem.second.get<std::string>("label", "");
-      auto accel = elem.second.get<std::string>("keybinding", "");
-      auto action = elem.second.get<std::string>("action", "");
-      if(label.empty())
-        continue;
-      if(!accel.empty())
-        Singleton::config->menu.keys[action] = accel;
-      Singleton::menu->add_action(action, [action]() {
-        auto res = Singleton::python_interpreter->exec(action);
-        res.dec_ref();
-      });
-    }
-    if(elem.first == "section"){
-      for(auto &item : elem.second){
-        if(item.first == "item"){
-          auto label = item.second.get<std::string>("label", "");
-          auto accel = item.second.get<std::string>("keybinding", "");
-          auto action = item.second.get<std::string>("action", "");
-          if(label.empty())
-            continue;
-          if(!accel.empty())
-            Singleton::config->menu.keys[action] = accel;
-          Singleton::menu->add_action(action, [action]() {
-            auto res = Singleton::python_interpreter->exec(action);
-            res.dec_ref();
-          });
-        }
-      }
-    }
-  }
-}
-
 boost::property_tree::ptree Menu::Generator::generate_submenu(const std::string &label){
   boost::property_tree::ptree ptree;
   std::stringstream ss;
@@ -371,8 +333,7 @@ void Menu::init() {
   }
   Generator g;
   auto submenus = menu->equal_range("submenu");
-  for (auto &entry : plugin_entries) {
-    auto &json = entry.ptree;
+  for (auto &json : plugin_entries) {
     auto main_menu = json.get<std::string>("main_menu", "");
     if(main_menu.empty()) {
       Singleton::terminal->print("Could't parse json, main_menu element missing");

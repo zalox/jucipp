@@ -56,7 +56,43 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
   
   api.def("add_menu_element",
     [] (const char *json) {
-      Singleton::menu->plugin_entries.emplace_back(json);
+      boost::property_tree::ptree ptree;
+      std::stringstream ss;
+      ss << json;
+      boost::property_tree::read_json(ss, ptree);
+      for(auto &elem : ptree.get_child("sections")) { //TODO Do this recursive
+        if(elem.first == "item"){
+          auto label = elem.second.get<std::string>("label", "");
+          auto accel = elem.second.get<std::string>("keybinding", "");
+          auto action = elem.second.get<std::string>("action", "");
+          if(label.empty())
+            continue;
+          if(!accel.empty())
+            Singleton::config->menu.keys[action] = accel;
+          Singleton::menu->add_action(action, [action]() {
+            auto res = Singleton::python_interpreter->exec(action);
+            res.dec_ref();
+          });
+        }
+        if(elem.first == "section"){
+          for(auto &item : elem.second){
+            if(item.first == "item"){
+              auto label = item.second.get<std::string>("label", "");
+              auto accel = item.second.get<std::string>("keybinding", "");
+              auto action = item.second.get<std::string>("action", "");
+              if(label.empty())
+                continue;
+              if(!accel.empty())
+                Singleton::config->menu.keys[action] = accel;
+              Singleton::menu->add_action(action, [action]() {
+                auto res = Singleton::python_interpreter->exec(action);
+                res.dec_ref();
+              });
+            }
+          }
+        }
+      }
+      Singleton::menu->plugin_entries.emplace_back(ptree);
     },
     "Returns void. Adds menu configured by 'json'",
     pybind11::arg("str json")

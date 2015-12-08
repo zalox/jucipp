@@ -26,13 +26,7 @@ public:
         boost::property_tree::ptree generate_item(const std::string &label, const std::string &action, const std::string &accel);
   };
   
-  class Entry {
-  public:
-      Entry(const std::string &json);
-      boost::property_tree::ptree ptree;
-  };
-  
-  std::vector<Entry> plugin_entries;
+  std::vector<boost::property_tree::ptree> plugin_entries;
 };
 
 

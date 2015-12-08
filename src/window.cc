@@ -230,15 +230,24 @@ void Window::set_menu_actions() {
     if(notebook.get_current_page()!=-1) {
       if(notebook.save_current()) {
         if(notebook.get_current_page()!=-1) {
-          if(notebook.get_current_view()->file_path==Singleton::config->juci_home_path()/"config"/"config.json") {
+          const auto file_path = notebook.get_current_view()->file_path;
+          if(file_path==Singleton::config->juci_home_path()/"config"/"config.json") {
             configure();
             for(int c=0;c<notebook.size();c++) {
               notebook.get_view(c)->configure();
               notebook.configure(c);
             }
           }
-          if(notebook.get_current_view()->file_path.parent_path()==Singleton::config->juci_home_path()/"plugins") {
-            Singleton::python_interpreter->import(notebook.get_current_view()->file_path.stem().string());
+          auto parent = file_path;
+          while(parent.has_parent_path()) {
+            if(parent == Singleton::config->juci_home_path()/"plugins") {
+              auto stem = notebook.get_current_view()->file_path.stem().string();
+              if(Singleton::python_interpreter->import(stem)){
+                  Singleton::terminal->print("Python module "+stem + " has been reloaded");
+              }
+              break;
+            }
+            parent = parent.parent_path();
           }
         }
       }

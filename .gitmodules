@@ -6,4 +6,7 @@
 	path = pybind11
 	url = https://github.com/wjakob/pybind11.git
 	branch = stable
-	
+[submodule "tiny-process-library"]
+	path = tiny-process-library
+	url = https://github.com/eidheim/tiny-process-library
+	branch = v1.0.1

@@ -32,6 +32,7 @@ find_package(ASPELL REQUIRED)
 find_package(PythonLibs 3 REQUIRED)
 set(PYBIND11_INCLUDE_DIR ../pybind11/include)
 set(LIBCLANGMM_INCLUDE_DIR ../libclangmm/src)
+set(TINY_PROCESS_INCLUDE_DIR ../tiny-process-library)
 
 include(FindPkgConfig)
 pkg_check_modules(GTKMM gtkmm-3.0 REQUIRED)
@@ -46,6 +47,7 @@ set(global_includes
    ${ASPELL_INCLUDE_DIR}
    ${PYTHON_INCLUDE_DIRS}
    ${PYBIND11_INCLUDE_DIR}
+   ${TINY_PROCESS_INCLUDE_DIR}
 )
 
 set(global_libraries
@@ -79,8 +81,6 @@ set(application_files
     menu.h
     notebook.cc
     notebook.h
-    process.cc
-    process.h
     python_api.cc
     python_api.h
     python_interpreter.cc
@@ -113,18 +113,19 @@ set(application_files
     ../libclangmm/src/SourceRange.cc
     ../libclangmm/src/Token.cc
     ../libclangmm/src/Tokens.cc
-    ../libclangmm/src/TranslationUnit.cc
-    ../libclangmm/src/Utility.cc)
+    ../libclangmm/src/TranslationUnit.cc    
+    ../libclangmm/src/Utility.cc
+    
+    ../tiny-process-library/process.cpp)
 
 if(MSYS)
-  list(APPEND application_files process_win.cc dialogs_unix.cc)
+  list(APPEND application_files dialogs_unix.cc ../tiny-process-library/process_win.cpp)
 else()
-  list(APPEND application_files process_unix.cc dialogs_unix.cc)
+  list(APPEND application_files dialogs_unix.cc ../tiny-process-library/process_unix.cpp)
 endif()
 
-add_executable(${application_name} ${application_files})
-
 include_directories(${global_includes})
+add_executable(${application_name} ${application_files})
 target_link_libraries(${application_name} ${global_libraries})
 
 install(TARGETS ${application_name}

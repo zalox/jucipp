@@ -7,7 +7,6 @@
 
 class PythonInterpreter {
 public:
-  PythonInterpreter();
   ~PythonInterpreter();
   void append_path(const boost::filesystem::path &path);
   bool import(const std::string &module_name);
@@ -16,7 +15,9 @@ public:
                         Args &&... args);
   pybind11::handle exec(const std::string &method_qualifier);
   void init();
+  static PythonInterpreter& get();
 private:
+  PythonInterpreter();
   std::unordered_map<std::string, pybind11::handle> modules;
 };
 

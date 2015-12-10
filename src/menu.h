@@ -7,9 +7,13 @@
 #include <boost/property_tree/ptree.hpp>
 
 class Menu {
-public:
+private:
   Menu();
-  void init(); //For Ubuntu 14...
+public:
+  static Menu &get() {
+    static Menu singleton;
+    return singleton;
+  }
   
   void add_action(const std::string &name, std::function<void()> action);
   std::unordered_map<std::string, Glib::RefPtr<Gio::SimpleAction> > actions;

@@ -8,7 +8,7 @@
 #include <thread>
 #include <atomic>
 #include <iostream>
-#include "process.hpp"
+#include <process.hpp>
 
 class Terminal : public Gtk::TextView {
 public:
@@ -26,7 +26,14 @@ public:
     Glib::Dispatcher waiting_print;
     std::thread wait_thread;
   };
+private:
   Terminal();
+public:
+  static Terminal &get() {
+    static Terminal singleton;
+    return singleton;
+  }
+  
   int process(const std::string &command, const boost::filesystem::path &path="", bool use_pipes=true);
   int process(std::istream &stdin_stream, std::ostream &stdout_stream, const std::string &command, const boost::filesystem::path &path="");
   void async_process(const std::string &command, const boost::filesystem::path &path="", std::function<void(int exit_status)> callback=nullptr);

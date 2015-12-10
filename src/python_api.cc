@@ -1,6 +1,11 @@
 #include "python_api.h"
-#include "singletons.h"
+#include "python_interpreter.h"
+#include "notebook.h"
+#include "config.h"
 #include "juci.h"
+#include "menu.h"
+#include "directories.h"
+#include "window.h"
 
 extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
   
@@ -8,7 +13,7 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
   
   api.def("get_juci_home",
     [] () {
-      return Singleton::config->juci_home_path().string();
+      return Config::get().juci_home_path().string();
     },
     "(str) Returns the path of the juci home folder"
   );
@@ -26,9 +31,9 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
           if(label.empty())
             continue;
           if(!accel.empty())
-            Singleton::config->menu.keys[action] = accel;
-          Singleton::menu->add_action(action, [action]() {
-            auto res = Singleton::python_interpreter->exec(action);
+            Config::get().menu.keys[action] = accel;
+          Menu::get().add_action(action, [action]() {
+            auto res = PythonInterpreter::get().exec(action);
             res.dec_ref();
           });
         }
@@ -41,16 +46,16 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
               if(label.empty())
                 continue;
               if(!accel.empty())
-                Singleton::config->menu.keys[action] = accel;
-              Singleton::menu->add_action(action, [action]() {
-                auto res = Singleton::python_interpreter->exec(action);
+                Config::get().menu.keys[action] = accel;
+                Menu::get().add_action(action, [action]() {
+                auto res = PythonInterpreter::get().exec(action);
                 res.dec_ref();
               });
             }
           }
         }
       }
-      Singleton::menu->plugin_entries.emplace_back(ptree);
+      Menu::get().plugin_entries.emplace_back(ptree);
     },
     "(void) Builds a menu configured by 'json'",
     pybind11::arg("(str) json")
@@ -61,72 +66,55 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
       [] (const char *dir) { // ex. libjuci.directories.open("/home/")
         boost::filesystem::path path(dir);
         if (boost::filesystem::is_directory(path))
-          Singleton::directories->open(path);
+          Directories::get().open(path);
       },
       "(void) Opens 'dir' in file tree",
       pybind11::arg("(str) dir")
     )
     .def("update",
       [] () {
-        Singleton::directories->update(); 
+        Directories::get().update(); 
       },
       "(void) Updates the file tree"
-    )
-  ;
+    );
   
   api.def_submodule("editor")
     .def("get_file",
       [] () {
-        auto g_application = g_application_get_default();
-        auto gio_application = Glib::wrap(g_application, true);
-        auto application = Glib::RefPtr<Application>::cast_static(gio_application);
-        if (application) {
-          auto view = application->window->notebook.get_current_view();
-          if (view != nullptr) {
-            return view->file_path.c_str();
-          }
+        auto& window = Window::get();
+        auto view = window.notebook.get_current_view();
+        if (view != nullptr) {
+          return view->file_path.c_str();
         }
         return "";
       },
       "(str) Returns the current open file. If no file is open it returns empty a string")
     .def("get_text",
       [] () {
-        auto g_application = g_application_get_default();
-        auto gio_application = Glib::wrap(g_application, true);
-        auto application = Glib::RefPtr<Application>::cast_static(gio_application);
-        if (application) {
-          auto view = application->window->notebook.get_current_view();
-          if (view != nullptr) {
-            return view->get_buffer()->get_text().c_str();
-          }
+        auto& window = Window::get();
+        auto view = window.notebook.get_current_view();
+        if (view != nullptr) {
+          return view->get_buffer()->get_text().c_str();
         }
         return "";
       },
       "returns the currently open buffers content")
     .def("get_line_number",
       [] () {
-        auto g_application = g_application_get_default();
-        auto gio_application = Glib::wrap(g_application, true);
-        auto application = Glib::RefPtr<Application>::cast_static(gio_application);
-        if (application) {
-          auto view = application->window->notebook.get_current_view();
-          if (view != nullptr) {
-            return view->get_source_buffer()->get_insert()->get_iter().get_line();
-          }
+        auto& window = Window::get();
+        auto view = window.notebook.get_current_view();
+        if (view != nullptr) {
+          return view->get_source_buffer()->get_insert()->get_iter().get_line();
         }
         return -1;
       },
       "(int) Returns the line which is being edited, -1 if no file is open or no line is selected")
     .def("get_line_offset",
       [] () {
-        auto g_application = g_application_get_default();
-        auto gio_application = Glib::wrap(g_application, true);
-        auto application = Glib::RefPtr<Application>::cast_static(gio_application);
-        if (application) {
-          auto view = application->window->notebook.get_current_view();
-          if (view != nullptr) {
-            return view->get_source_buffer()->get_insert()->get_iter().get_line_offset();
-          }
+        auto& window = Window::get();
+        auto view = window.notebook.get_current_view();
+        if (view != nullptr) {
+          return view->get_source_buffer()->get_insert()->get_iter().get_line_offset();
         }
         return -1;       
       },
@@ -134,14 +122,10 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
       " newline, 0 is the first character -1 if no file is open or no line is selected")
     .def("get_offset",
       [] () {
-        auto g_application = g_application_get_default();
-        auto gio_application = Glib::wrap(g_application, true);
-        auto application = Glib::RefPtr<Application>::cast_static(gio_application);
-        if (application) {
-          auto view = application->window->notebook.get_current_view();
-          if (view != nullptr) {
-            return view->get_source_buffer()->get_insert()->get_iter().get_offset();
-          }
+        auto& window = Window::get();
+        auto view = window.notebook.get_current_view();
+        if (view != nullptr) {
+          return view->get_source_buffer()->get_insert()->get_iter().get_offset();
         }
         return -1;
       },
@@ -149,16 +133,12 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
       " file. 0 is the first character. Returns -1 if no lines or files are selected/open")
     .def("get_text_range",
       [] (int begin_offset, int end_offset) {
-        auto g_application = g_application_get_default();
-        auto gio_application = Glib::wrap(g_application, true);
-        auto application = Glib::RefPtr<Application>::cast_static(gio_application);
-        if (application) {
-          auto view = application->window->notebook.get_current_view();
-          if (view != nullptr) {
-            auto begin_iter = view->get_buffer()->get_iter_at_offset(begin_offset);
-            auto end_iter = view->get_buffer()->get_iter_at_offset(end_offset);
-            return view->get_source_buffer()->get_text(begin_iter, end_iter).c_str();
-          }
+        auto& window = Window::get();
+        auto view = window.notebook.get_current_view();
+        if (view != nullptr) {
+          auto begin_iter = view->get_buffer()->get_iter_at_offset(begin_offset);
+          auto end_iter = view->get_buffer()->get_iter_at_offset(end_offset);
+          return view->get_source_buffer()->get_text(begin_iter, end_iter).c_str();
         }
         return "";
       },
@@ -166,61 +146,45 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
       "string if editor isn't focused on a file")
     .def("scroll-to",
       [] (int char_offset) {
-        auto g_application = g_application_get_default();
-        auto gio_application = Glib::wrap(g_application, true);
-        auto application = Glib::RefPtr<Application>::cast_static(gio_application);
-        if (application) {
-          auto view = application->window->notebook.get_current_view();
-          if (view != nullptr) {
-            auto scroll_iter = view->get_buffer()->get_iter_at_offset(char_offset);
-            view->scroll_to(scroll_iter);
-          }
+        auto& window = Window::get();
+        auto view = window.notebook.get_current_view();
+        if (view != nullptr) {
+          auto scroll_iter = view->get_buffer()->get_iter_at_offset(char_offset);
+          view->scroll_to(scroll_iter);
         }
       },
       "(void) Scrolls cursor to 'char_offset'")
     .def("insert-at",
       [](int char_offset, const char* text){
-        auto g_application = g_application_get_default();
-        auto gio_application = Glib::wrap(g_application, true);
-        auto application = Glib::RefPtr<Application>::cast_static(gio_application);
-        if (application) {
-          auto view = application->window->notebook.get_current_view();
-          if (view != nullptr) {
-            auto insert = view->get_buffer()->get_iter_at_offset(char_offset);
-            view->get_buffer()->insert(insert, text);
-          }
+        auto& window = Window::get();
+        auto view = window.notebook.get_current_view();
+        if (view != nullptr) {
+          auto insert = view->get_buffer()->get_iter_at_offset(char_offset);
+          view->get_buffer()->insert(insert, text);
         }
       },
       "(void) Inserts text at the given offset, caller is responsible to scroll to the insertion")
     .def("insert-at-cursor",
     [](int char_offset, const char* text){
-      auto g_application = g_application_get_default();
-      auto gio_application = Glib::wrap(g_application, true);
-      auto application = Glib::RefPtr<Application>::cast_static(gio_application);
-      if (application) {
-        auto view = application->window->notebook.get_current_view();
-        if (view != nullptr) {
-          view->get_buffer()->insert_at_cursor(text);
-        }
+      auto& window = Window::get();
+      auto view = window.notebook.get_current_view();
+      if (view != nullptr) {
+        view->get_buffer()->insert_at_cursor(text);
       }
     },
     "(void) Inserts text at the cursor")
     .def("get_tab_char_and_size",
       [](){
-        auto g_application = g_application_get_default();
-        auto gio_application = Glib::wrap(g_application, true);
-        auto application = Glib::RefPtr<Application>::cast_static(gio_application);
-        if (application) {
-          auto view = application->window->notebook.get_current_view();
-          if (view != nullptr) {
-            std::stringstream ss;
-            boost::property_tree::ptree ptree;
-            auto pair = view->get_tab_char_and_size();
-            ptree.add("tab_char", pair.first);
-            ptree.add("size", pair.second);
-            boost::property_tree::write_json(ss, ptree);
-            return ss.str();
-          }
+        auto& window = Window::get();
+        auto view = window.notebook.get_current_view();
+        if (view != nullptr) {
+          std::stringstream ss;
+          boost::property_tree::ptree ptree;
+          auto pair = view->get_tab_char_and_size();
+          ptree.add("tab_char", pair.first);
+          ptree.add("size", pair.second);
+          boost::property_tree::write_json(ss, ptree);
+          return ss.str();
         }
         return std::string();
       },
@@ -232,24 +196,20 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
       "(bool) Returns true if the current open file is saved")
     .def("get_highlighted_word",
       [] () {
-        auto g_application = g_application_get_default();
-        auto gio_application = Glib::wrap(g_application, true);
-        auto application = Glib::RefPtr<Application>::cast_static(gio_application);
-        if (application) {
-          auto view = application->window->notebook.get_current_view();
-          if (view != nullptr) {
-            if (view->get_token) {
-              auto token = view->get_token();
-              if (token.type != -1) {
-                boost::property_tree::ptree ptree;
-                ptree.add("word", token.spelling);
-                ptree.add("type", token.type);
-                std::stringstream ss;
-                boost::property_tree::json_parser::write_json(ss, ptree);
-                std::string res(ss.str());
-                Singleton::terminal->print(res);
-                return res;
-              }
+        auto& window = Window::get();
+        auto view = window.notebook.get_current_view();
+        if (view != nullptr) {
+          if (view->get_token) {
+            auto token = view->get_token();
+            if (token.type != -1) {
+              boost::property_tree::ptree ptree;
+              ptree.add("word", token.spelling);
+              ptree.add("type", token.type);
+              std::stringstream ss;
+              boost::property_tree::json_parser::write_json(ss, ptree);
+              std::string res(ss.str());
+              Terminal::get().print(res);
+              return res;
             }
           }
         }
@@ -265,12 +225,11 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
   api.def_submodule("terminal")
     .def("print",
       [] (const char *message) {
-        return Singleton::terminal->print(message);
+        return Terminal::get().print(message);
       },
       "Returns int, Prints 'message' to terminal", //TODO what does the return represent?
       pybind11::arg("str message, add \n for line break")
     )
   ;
-
   return api.ptr();
 }

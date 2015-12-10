@@ -1,10 +1,8 @@
-#include <string>
-#include <iostream>
-#include <boost/property_tree/xml_parser.hpp>
 #include "menu.h"
-#include "singletons.h"
-
-Menu::Menu(){}
+#include "config.h"
+#include <string>
+#include <boost/property_tree/xml_parser.hpp>
+#include "terminal.h"
 
 boost::property_tree::ptree Menu::Generator::generate_submenu(const std::string &label){
   boost::property_tree::ptree ptree;
@@ -29,9 +27,9 @@ boost::property_tree::ptree Menu::Generator::generate_item(const std::string &la
   boost::property_tree::read_xml(ss, ptree);
   return ptree;
 }
-//TODO: if Ubuntu ever gets fixed, move to constructor, also cleanup the rest of the Ubuntu specific code
-void Menu::init() {
-  auto accels=Singleton::config->menu.keys;
+
+Menu::Menu(){
+  auto accels=Config::get().menu.keys;
   for(auto &accel: accels) {
 #ifdef JUCI_UBUNTU_BUGGED_MENU
     size_t pos=0;
@@ -336,7 +334,7 @@ void Menu::init() {
   for (auto &json : plugin_entries) {
     auto main_menu = json.get<std::string>("main_menu", "");
     if(main_menu.empty()) {
-      Singleton::terminal->print("Could't parse json, main_menu element missing");
+      Terminal::get().print("Could't parse json, main_menu element missing");
       continue;
     }
     boost::property_tree::ptree *add_into = nullptr;
@@ -354,7 +352,7 @@ void Menu::init() {
         if (!label.empty() && !action.empty()){
           add_into->add_child("item", g.generate_item(label, action, accels[label]));
         } else {
-          Singleton::terminal->print("Could not parse json, item has no action or label");
+          Terminal::get().print("Could not parse json, item has no action or label");
         }
       } else if(elem.first == "submenu") {
         auto label = elem.second.get<std::string>("label", "");
@@ -368,7 +366,7 @@ void Menu::init() {
             if (!label.empty() && !action.empty()){
               submenu.add_child("item", g.generate_item(label, action, accels[label]));
             } else {
-              Singleton::terminal->print("Could not parse json, submenu item has no action or label");
+              Terminal::get().print("Could not parse json, submenu item has no action or label");
             }
         }
       }
@@ -394,8 +392,7 @@ void Menu::set_keys() {
   auto g_application=g_application_get_default();
   auto gio_application=Glib::wrap(g_application, true);
   auto application=Glib::RefPtr<Gtk::Application>::cast_static(gio_application);
-
-  for(auto &key: Singleton::config->menu.keys) {
+  for(auto &key: Config::get().menu.keys) {
     if(key.second.size()>0 && actions.find(key.first)!=actions.end()) {
 #if GTK_VERSION_GE(3, 12)
       application->set_accel_for_action("app."+key.first, key.second);
@@ -408,7 +405,6 @@ void Menu::set_keys() {
 
 void Menu::build() {
   builder = Gtk::Builder::create();
-
   try {
     builder->add_from_string(ui_xml);
   }

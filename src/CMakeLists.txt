@@ -87,8 +87,6 @@ set(application_files
     python_interpreter.h
     selectiondialog.cc
     selectiondialog.h
-    singletons.cc
-    singletons.h
     source.cc
     source.h
     source_clang.cc

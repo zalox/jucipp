@@ -1,11 +1,17 @@
 #include "python_interpreter.h"
 #include "python_api.h"
-#include "singletons.h"
+#include "config.h"
+#include "terminal.h"
 #include "juci.h"
+
+PythonInterpreter& PythonInterpreter::get() {
+  static PythonInterpreter s;
+  return s;
+}
 
 PythonInterpreter::PythonInterpreter() {
 #ifdef _WIN32
-  auto root_path = Singleton::config->juci_home_path();
+  auto root_path = Config::get()->juci_home_path();
   for(size_t i = 0; i < 3; i++) {
     root_path = root_path.parent_path();
   }
@@ -28,7 +34,7 @@ PythonInterpreter::PythonInterpreter() {
 }
 
 void PythonInterpreter::init() {
-  auto plugin_path = Singleton::config->juci_home_path() / "plugins";
+  auto plugin_path = Config::get().juci_home_path() / "plugins";
   append_path(plugin_path);
   PyImport_AppendInittab("libjuci", init_juci_api);
   Py_Initialize();
@@ -72,7 +78,7 @@ bool PythonInterpreter::import(const std::string &module_name) {
       return true;
     }
     PyErr_Print();
-    Singleton::terminal->print("Error while loading plugin "+module_name+", check syntax");
+    Terminal::get().print("Error while loading plugin "+module_name+", check syntax");
     return false;
   } else {
     pybind11::handle reload_module(PyImport_ReloadModule(module->second.ptr()));
@@ -84,7 +90,7 @@ bool PythonInterpreter::import(const std::string &module_name) {
       PyErr_Print();
       reload_module.dec_ref();
       //TODO print syntax errors or add linter to Source::View
-      Singleton::terminal->print("Error while reloading plugin "+module_name+", check syntax");
+      Terminal::get().print("Error while reloading plugin "+module_name+", check syntax");
       return false;
     }
   }

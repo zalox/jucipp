@@ -9,31 +9,23 @@
 class Menu {
 private:
   Menu();
+  
 public:
   static Menu &get() {
     static Menu singleton;
     return singleton;
   }
   
-  void add_action(const std::string &name, std::function<void()> action);
-  std::unordered_map<std::string, Glib::RefPtr<Gio::SimpleAction> > actions;
-  void set_keys();
-  
-  void build();
-  Glib::RefPtr<Gtk::Builder> builder;
-  
-  std::string ui_xml;
-  
   class Generator {
-      public:
-        boost::property_tree::ptree generate_submenu(const std::string &label);
-        boost::property_tree::ptree generate_item(const std::string &label, const std::string &action, const std::string &accel);
+    public:
+      boost::property_tree::ptree generate_submenu(const std::string &label);
+      boost::property_tree::ptree generate_item(const std::string &label, const std::string &action, const std::string &accel);
   };
-  
+  void add_action(const std::string &name, std::function<void()> action);
+  void set_keys();
+  Glib::RefPtr<Gtk::Builder> build();
   std::vector<boost::property_tree::ptree> plugin_entries;
+  std::unordered_map<std::string, Glib::RefPtr<Gio::SimpleAction> > actions;
 };
-
-
-
 
 #endif  // JUCI_MENU_H_

@@ -1,7 +1,6 @@
 #ifndef JUCI_NOTEBOOK_H_
 #define JUCI_NOTEBOOK_H_
 
-#include <iostream>
 #include "gtkmm.h"
 #include "source.h"
 #include "source_clang.h"

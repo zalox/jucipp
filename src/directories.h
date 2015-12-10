@@ -4,7 +4,7 @@
 #include <gtkmm.h>
 #include <vector>
 #include <string>
-#include "boost/filesystem.hpp"
+#include <boost/filesystem.hpp>
 #include "cmake.h"
 #include <thread>
 #include <mutex>

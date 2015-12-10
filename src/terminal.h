@@ -7,7 +7,6 @@
 #include <boost/filesystem.hpp>
 #include <thread>
 #include <atomic>
-#include <iostream>
 #include <process.hpp>
 
 class Terminal : public Gtk::TextView {

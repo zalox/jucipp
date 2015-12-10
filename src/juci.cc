@@ -76,11 +76,11 @@ void Application::on_activate() {
 
 void Application::on_startup() {
   Gtk::Application::on_startup();
-  PythonInterpreter::get().init();
-  Menu::get().build();
-  auto object = Menu::get().builder->get_object("juci-menu");
+  PythonInterpreter::get();
+  auto builder = Menu::get().build();
+  auto object = builder->get_object("juci-menu");
   auto juci_menu = Glib::RefPtr<Gio::Menu>::cast_dynamic(object);
-  object = Menu::get().builder->get_object("window-menu");
+  object = builder->get_object("window-menu");
   auto window_menu = Glib::RefPtr<Gio::Menu>::cast_dynamic(object);
   if (!juci_menu || !window_menu) {
     std::cerr << "Menu not found." << std::endl;

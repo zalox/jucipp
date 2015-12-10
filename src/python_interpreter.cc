@@ -31,9 +31,6 @@ PythonInterpreter::PythonInterpreter() {
   PyErr_Clear();
   Py_Finalize();
 #endif
-}
-
-void PythonInterpreter::init() {
   auto plugin_path = Config::get().juci_home_path() / "plugins";
   append_path(plugin_path);
   PyImport_AppendInittab("libjuci", init_juci_api);

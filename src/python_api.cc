@@ -109,7 +109,25 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
         }
         return "";
       },
-      "returns the currently open buffers content")
+      "(str) returns the text in the open editor")
+    .def("get_line",
+    [] () {
+      auto& window = Window::get();
+      auto view = window.notebook.get_current_view();
+      if (view != nullptr) {
+        auto insert_iter = view->get_buffer()->get_insert()->get_iter();
+        Gtk::TextIter start_iter = insert_iter, end_iter = insert_iter;
+        while(!start_iter.starts_line()) {
+          start_iter--;
+        }
+        while(!end_iter.ends_line()){
+          end_iter++;
+        }
+        return view->get_buffer()->get_text(start_iter, end_iter).c_str();
+      }
+      return "";
+    },
+    "(str) returns the line of text the caret is on")
     .def("get_line_number",
       [] () {
         auto& window = Window::get();
@@ -175,8 +193,30 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
         }
       },
       "(void) Inserts text at the given offset, caller is responsible to scroll to the insertion")
-    .def("insert-at-cursor",
-    [](int char_offset, const char* text){
+    .def("erase_line_range",
+    [](int line_number, int begin_line_offset, int end_line_offset){
+      auto& window = Window::get();
+      auto view = window.notebook.get_current_view();
+      if (view != nullptr) {
+        auto begin_iter = view->get_buffer()->get_iter_at_line_offset(line_number, begin_line_offset);
+        auto end_iter = view->get_buffer()->get_iter_at_line_offset(line_number, end_line_offset);
+        view->get_buffer()->erase(begin_iter, end_iter);
+      }
+    },
+    "(void) Removes text on line 'line_number' between 'begin_line_offset' and 'end_line_offset'")
+    .def("erase",
+    [](int begin_offset, int end_offset){
+      auto& window = Window::get();
+      auto view = window.notebook.get_current_view();
+      if (view != nullptr) {
+        auto begin_iter = view->get_buffer()->get_iter_at_offset(begin_offset);
+        auto end_iter = view->get_buffer()->get_iter_at_offset(end_offset);
+        view->get_buffer()->erase(begin_iter, end_iter);
+      }
+    },
+    "(void) Removes text between the given offsets")
+    .def("insert_at_cursor",
+    [](const char* text){
       auto& window = Window::get();
       auto view = window.notebook.get_current_view();
       if (view != nullptr) {

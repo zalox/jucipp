@@ -371,7 +371,9 @@ Glib::RefPtr<Gtk::Builder> Menu::build() {
       }
       if(add_into == nullptr)
         add_into = &menu->add_child("submenu", g.generate_submenu(main_menu));
-      for(auto &elem : json.get_child("sections")){
+      boost::property_tree::ptree empty;
+      auto &sections = json.get_child("sections", empty);
+      for(auto &elem : sections) {
         if(elem.first == "item") {
           auto label = elem.second.get<std::string>("label", "");
           auto action = elem.second.get<std::string>("action", "");
@@ -385,7 +387,8 @@ Glib::RefPtr<Gtk::Builder> Menu::build() {
           if(label.empty())
             continue;
           auto &submenu = add_into->add_child("submenu", g.generate_submenu(label));
-          for(auto &subelem : elem.second.get_child("sections")){
+          auto &inner_sections = elem.second.get_child("sections", empty);
+          for(auto &subelem : inner_sections){
             if(subelem.first == "item") {
               auto label = subelem.second.get<std::string>("label", "");
               auto action = subelem.second.get<std::string>("action", "");
@@ -403,8 +406,7 @@ Glib::RefPtr<Gtk::Builder> Menu::build() {
     boost::property_tree::write_xml(ss, ptree, boost::property_tree::xml_parser::trim_whitespace);
     ui_xml = ss.str();
     menu = nullptr;
-    auto builder = Gtk::Builder::create_from_string(ui_xml);
-    return builder;
+    return Gtk::Builder::create_from_string(ui_xml);
   }
   catch (const Glib::Error &ex) {
     std::cerr << "building menu failed: " << ex.what();

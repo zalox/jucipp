@@ -22,35 +22,46 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
       boost::property_tree::ptree ptree;
       std::stringstream ss;
       ss << json;
-      boost::property_tree::read_json(ss, ptree);
-      for(auto &elem : ptree.get_child("sections")) { //TODO Do this recursive
+      try {
+        boost::property_tree::read_json(ss, ptree);  
+      } catch (std::exception &ex) {
+        
+      }
+      boost::property_tree::ptree empty;
+      auto & sections = ptree.get_child("sections", empty);
+      if(sections.empty()) {
+        std::cerr << "Error parsing json from plugin menu definition, please verify" << std::endl;
+        return;
+      }
+      for(auto &elem : sections) { //TODO Do this recursive
         if(elem.first == "item"){
           auto label = elem.second.get<std::string>("label", "");
           auto accel = elem.second.get<std::string>("keybinding", "");
           auto action = elem.second.get<std::string>("action", "");
-          if(label.empty())
-            continue;
-          if(!accel.empty())
+          if(!action.empty() || !accel.empty())
             Config::get().menu.keys[action] = accel;
           Menu::get().add_action(action, [action]() {
             auto res = PythonInterpreter::get().exec(action);
             res.dec_ref();
           });
         }
-        if(elem.first == "section"){
-          for(auto &item : elem.second){
+        if(elem.first == "submenu"){
+          auto & inner_sections = elem.second.get_child("sections", empty);
+          if(inner_sections.empty()) {
+            std::cerr << "Error parsing json from plugin menu definition, please verify" << std::endl;
+            return;
+          }
+          for(auto &item : inner_sections){
             if(item.first == "item"){
               auto label = item.second.get<std::string>("label", "");
               auto accel = item.second.get<std::string>("keybinding", "");
               auto action = item.second.get<std::string>("action", "");
-              if(label.empty())
-                continue;
-              if(!accel.empty())
+              if(!accel.empty() || !action.empty())
                 Config::get().menu.keys[action] = accel;
                 Menu::get().add_action(action, [action]() {
-                auto res = PythonInterpreter::get().exec(action);
-                res.dec_ref();
-              });
+                  auto res = PythonInterpreter::get().exec(action);
+                  res.dec_ref();
+                });
             }
           }
         }
@@ -144,7 +155,7 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
       },
       "(str) Returns the text between 'begin_offset' and 'end_offset'. Returns empty"
       "string if editor isn't focused on a file")
-    .def("scroll-to",
+    .def("scroll_to",
       [] (int char_offset) {
         auto& window = Window::get();
         auto view = window.notebook.get_current_view();
@@ -154,7 +165,7 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
         }
       },
       "(void) Scrolls cursor to 'char_offset'")
-    .def("insert-at",
+    .def("insert_at",
       [](int char_offset, const char* text){
         auto& window = Window::get();
         auto view = window.notebook.get_current_view();
@@ -223,7 +234,7 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
     )
   ;
   api.def_submodule("terminal")
-    .def("print",
+    .def("println",
       [] (const char *message) {
         return Terminal::get().print(message);
       },

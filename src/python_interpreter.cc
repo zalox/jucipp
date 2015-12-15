@@ -32,6 +32,8 @@ PythonInterpreter::PythonInterpreter() {
   Py_Finalize();
 #endif
   auto plugin_path = Config::get().juci_home_path() / "plugins";
+  if(!boost::filesystem::exists(plugin_path))
+    Config::get();
   append_path(plugin_path);
   PyImport_AppendInittab("libjuci", init_juci_api);
   Py_Initialize();

@@ -353,7 +353,7 @@ Glib::RefPtr<Gtk::Builder> Menu::build() {
     for(auto &it = menu_range.first; it!=menu_range.second; it++){
       if((it->second.get_child("<xmlattr>.id")).get_value<std::string>() == "window-menu"){
         menu = &it->second;
-      }   
+      }
     }
     Generator g;
     auto submenus = menu->equal_range("submenu");

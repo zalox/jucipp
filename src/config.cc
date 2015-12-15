@@ -6,18 +6,16 @@
 #include "filesystem.h"
 #include "terminal.h"
 
-using namespace std; //TODO: remove
-
 Config::Config() {
   std::vector<std::string> environment_variables = {"JUCI_HOME", "HOME", "AppData"};
   char *ptr = nullptr;
   for (auto &variable : environment_variables) {
     ptr=std::getenv(variable.c_str());
     if (ptr!=nullptr && boost::filesystem::exists(ptr)) {
-        home /= ptr;
-        home /= ".juci";
-        break;
-      }
+      home /= ptr;
+      home /= ".juci";
+      break;
+    }
   }
   if(home.empty()) {
     std::string searched_envs = "[";

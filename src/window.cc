@@ -28,9 +28,9 @@ Window::Window() : compiling(false) {
   set_menu_actions();
   configure();
   set_default_size(Config::get().window.default_size.first, Config::get().window.default_size.second);
-  
+
   add(vpaned);
-  
+
   directories_scrolled_window.add(Directories::get());
   directory_and_notebook_panes.pack1(directories_scrolled_window, Gtk::SHRINK);
   notebook_vbox.pack_start(notebook);
@@ -39,19 +39,19 @@ Window::Window() : compiling(false) {
   directory_and_notebook_panes.set_position(static_cast<int>(0.2*Config::get().window.default_size.first));
   vpaned.set_position(static_cast<int>(0.75*Config::get().window.default_size.second));
   vpaned.pack1(directory_and_notebook_panes, true, false);
-  
+
   terminal_scrolled_window.add(Terminal::get());
   terminal_vbox.pack_start(terminal_scrolled_window);
-    
+
   info_and_status_hbox.pack_start(notebook.info, Gtk::PACK_SHRINK);
   info_and_status_hbox.pack_end(notebook.status, Gtk::PACK_SHRINK);
   terminal_vbox.pack_end(info_and_status_hbox, Gtk::PACK_SHRINK);
   vpaned.pack2(terminal_vbox, true, true);
-  
+
   show_all_children();
 
-  Directories::get().on_row_activated=[this](const std::string &file) {
-    notebook.open(file);
+  Directories::get().on_row_activated=[this](const boost::filesystem::path &path) {
+    notebook.open(path);
   };
 
   //Scroll to end of terminal whenever info is printed
@@ -88,16 +88,16 @@ Window::Window() : compiling(false) {
       }
 
       activate_menu_items();
-      
+
       Directories::get().select(view->file_path);
-      
+
       if(view->full_reparse_needed) {
         if(!view->full_reparse())
           Terminal::get().async_print("Error: failed to reparse "+view->file_path.string()+". Please reopen the file manually.\n", true);
       }
       else if(view->soft_reparse_needed)
         view->soft_reparse();
-      
+
       view->set_status(view->status);
       view->set_info(view->info);
     }
@@ -105,14 +105,14 @@ Window::Window() : compiling(false) {
   notebook.signal_page_removed().connect([this](Gtk::Widget* page, guint page_num) {
     entry_box.hide();
   });
-  
+
   about.signal_response().connect([this](int d){
     about.hide();
   });
-  
+
   about.set_version(Config::get().window.version);
   about.set_authors({"(in order of appearance)",
-                     "Ted Johan Kristoffersen", 
+                     "Ted Johan Kristoffersen",
                      "Jørgen Lien Sellæg",
                      "Geir Morten Larsen",
                      "Ole Christian Eidheim"});
@@ -137,7 +137,7 @@ void Window::configure() {
 
 void Window::set_menu_actions() {
   auto &menu = Menu::get();
-  
+
   menu.add_action("about", [this]() {
     about.show();
     about.present();
@@ -148,7 +148,7 @@ void Window::set_menu_actions() {
   menu.add_action("quit", [this]() {
     close();
   });
-  
+
   menu.add_action("new_file", [this]() {
     boost::filesystem::path path = Dialog::new_file();
     if(path!="") {
@@ -159,7 +159,7 @@ void Window::set_menu_actions() {
         if(filesystem::write(path)) {
           if(Directories::get().current_path!="")
             Directories::get().update();
-          notebook.open(path.string());
+          notebook.open(path);
           Terminal::get().print("New file "+path.string()+" created.\n");
         }
         else
@@ -192,9 +192,9 @@ void Window::set_menu_actions() {
           project_name[c]='_';
       }
       auto cmakelists_path=project_path;
-      cmakelists_path+="/CMakeLists.txt";
+      cmakelists_path/="CMakeLists.txt";
       auto cpp_main_path=project_path;
-      cpp_main_path+="/main.cpp";
+      cpp_main_path/="main.cpp";
       if(boost::filesystem::exists(cmakelists_path)) {
         Terminal::get().print("Error: "+cmakelists_path.string()+" already exists.\n", true);
         return;
@@ -214,7 +214,7 @@ void Window::set_menu_actions() {
         Terminal::get().print("Error: Could not create project "+project_path.string()+"\n", true);
     }
   });
-  
+
   menu.add_action("open_file", [this]() {
     auto path=Dialog::open_file();
     if(path!="")
@@ -225,7 +225,7 @@ void Window::set_menu_actions() {
     if (path!="" && boost::filesystem::exists(path))
       Directories::get().open(path);
   });
-  
+
   menu.add_action("save", [this]() {
     if(notebook.get_current_page()!=-1) {
       if(notebook.save_current()) {
@@ -271,7 +271,7 @@ void Window::set_menu_actions() {
       }
     }
   });
-  
+
   menu.add_action("edit_undo", [this]() {
     if(notebook.get_current_page()!=-1) {
       auto undo_manager = notebook.get_current_view()->get_source_buffer()->get_undo_manager();
@@ -290,7 +290,7 @@ void Window::set_menu_actions() {
       }
     }
   });
-  
+
   menu.add_action("edit_cut", [this]() {
     auto widget=get_focus();
     if(auto entry=dynamic_cast<Gtk::Entry*>(widget))
@@ -312,11 +312,11 @@ void Window::set_menu_actions() {
     else if(notebook.get_current_page()!=-1)
       notebook.get_current_view()->paste();
   });
-  
+
   menu.add_action("edit_find", [this]() {
     search_and_replace_entry();
   });
-  
+
   menu.add_action("source_spellcheck", [this]() {
     if(notebook.get_current_page()!=-1)
         notebook.get_current_view()->spellcheck();
@@ -329,7 +329,7 @@ void Window::set_menu_actions() {
     if(notebook.get_current_page()!=-1)
         notebook.get_current_view()->goto_next_spellcheck_error();
   });
-  
+
   menu.add_action("source_indentation_set_buffer_tab", [this]() {
     set_tab_entry();
   });
@@ -337,25 +337,25 @@ void Window::set_menu_actions() {
     if(notebook.get_current_page()!=-1 && notebook.get_current_view()->auto_indent)
       notebook.get_current_view()->auto_indent();
   });
-  
+
   menu.add_action("source_goto_line", [this]() {
     goto_line_entry();
   });
   menu.add_action("source_center_cursor", [this]() {
     if(notebook.get_current_page()!=-1) {
       auto view=notebook.get_current_view();
-      
+
       while(g_main_context_pending(NULL))
         g_main_context_iteration(NULL, false);
       if(notebook.get_current_page()!=-1 && notebook.get_current_view()==view)
         view->scroll_to(view->get_buffer()->get_insert(), 0.0, 1.0, 0.5);
     }
   });
-  
+
   menu.add_action("source_find_documentation", [this]() {
     if(notebook.get_current_page()!=-1) {
       if(notebook.get_current_view()->get_token_data) {
-        auto data=notebook.get_current_view()->get_token_data();        
+        auto data=notebook.get_current_view()->get_token_data();
         if(data.size()>0) {
           auto documentation_search=Config::get().source.documentation_searches.find(data[0]);
           if(documentation_search!=Config::get().source.documentation_searches.end()) {
@@ -375,7 +375,7 @@ void Window::set_menu_actions() {
                 query=documentation_search->second.queries.find("@empty");
               if(query==documentation_search->second.queries.end())
                 query=documentation_search->second.queries.find("@any");
-              
+
               if(query!=documentation_search->second.queries.end()) {
                 std::string uri=query->second+token_query;
 #ifdef __APPLE__
@@ -392,7 +392,7 @@ void Window::set_menu_actions() {
       }
     }
   });
-  
+
   menu.add_action("source_goto_declaration", [this]() {
     if(notebook.get_current_page()!=-1) {
       if(notebook.get_current_view()->get_declaration_location) {
@@ -414,7 +414,7 @@ void Window::set_menu_actions() {
               iter.forward_char();
             auto end_line_index=iter.get_line_index();
             index=std::min(index, end_line_index);
-            
+
             while(g_main_context_pending(NULL))
               g_main_context_iteration(NULL, false);
             if(notebook.get_current_page()!=-1 && notebook.get_current_view()==view) {
@@ -443,7 +443,7 @@ void Window::set_menu_actions() {
           }
           current_view->selection_dialog=std::unique_ptr<SelectionDialog>(new SelectionDialog(*current_view, current_view->get_buffer()->create_mark(iter), true, true));
           auto rows=std::make_shared<std::unordered_map<std::string, Source::Offset> >();
-          
+
           //First add usages in current file
           auto usages=current_view->get_usages(token);
           for(auto &usage: usages) {
@@ -467,7 +467,7 @@ void Window::set_menu_actions() {
               }
             }
           }
-          
+
           if(rows->size()==0)
             return;
           current_view->selection_dialog->on_select=[this, rows](const std::string& selected, bool hide_window) {
@@ -498,7 +498,7 @@ void Window::set_menu_actions() {
   menu.add_action("source_rename", [this]() {
     rename_token_entry();
   });
-  
+
   menu.add_action("source_goto_next_diagnostic", [this]() {
     if(notebook.get_current_page()!=-1) {
       if(notebook.get_current_view()->goto_next_diagnostic) {
@@ -513,7 +513,7 @@ void Window::set_menu_actions() {
       }
     }
   });
-  
+
   menu.add_action("compile_and_run", [this]() {
     if(compiling)
       return;
@@ -580,7 +580,7 @@ void Window::set_menu_actions() {
       });
     }
   });
-  
+
   menu.add_action("run_command", [this]() {
     entry_box.clear();
     entry_box.labels.emplace_back();
@@ -594,7 +594,7 @@ void Window::set_menu_actions() {
         last_run_command=content;
         auto run_path=notebook.get_current_folder();
         Terminal::get().async_print("Running: "+content+'\n');
-  
+
         Terminal::get().async_process(content, run_path, [this, content](int exit_status){
           Terminal::get().async_print(content+" returned: "+std::to_string(exit_status)+'\n');
         });
@@ -608,14 +608,14 @@ void Window::set_menu_actions() {
     });
     entry_box.show();
   });
-  
+
   menu.add_action("kill_last_running", [this]() {
     Terminal::get().kill_last_async_process();
   });
   menu.add_action("force_kill_last_running", [this]() {
     Terminal::get().kill_last_async_process(true);
   });
-  
+
   menu.add_action("next_tab", [this]() {
     if(notebook.get_current_page()!=-1) {
       notebook.open(notebook.get_view((notebook.get_current_page()+1)%notebook.size())->file_path);
@@ -638,7 +638,7 @@ void Window::set_menu_actions() {
     else {
       notebook.status.set_text("");
       notebook.info.set_text("");
-      
+
       activate_menu_items(false);
     }
   });
@@ -795,25 +795,25 @@ void Window::set_tab_entry() {
   entry_box.clear();
   if(notebook.get_current_page()!=-1) {
     auto tab_char_and_size=notebook.get_current_view()->get_tab_char_and_size();
-    
+
     entry_box.labels.emplace_back();
     auto label_it=entry_box.labels.begin();
-    
+
     entry_box.entries.emplace_back(std::to_string(tab_char_and_size.second));
     auto entry_tab_size_it=entry_box.entries.begin();
     entry_tab_size_it->set_placeholder_text("Tab size");
-    
+
     char tab_char=tab_char_and_size.first;
     std::string tab_char_string;
     if(tab_char==' ')
       tab_char_string="space";
     else if(tab_char=='\t')
       tab_char_string="tab";
-      
+
     entry_box.entries.emplace_back(tab_char_string);
     auto entry_tab_char_it=entry_box.entries.rbegin();
     entry_tab_char_it->set_placeholder_text("Tab char");
-    
+
     const auto activate_function=[this, entry_tab_char_it, entry_tab_size_it, label_it](const std::string& content){
       if(notebook.get_current_page()!=-1) {
         char tab_char=0;
@@ -838,14 +838,14 @@ void Window::set_tab_entry() {
         }
       }
     };
-    
+
     entry_tab_char_it->on_activate=activate_function;
     entry_tab_size_it->on_activate=activate_function;
-    
+
     entry_box.buttons.emplace_back("Set tab in current buffer", [this, entry_tab_char_it](){
       entry_tab_char_it->activate();
     });
-    
+
     entry_box.show();
   }
 }
@@ -860,7 +860,7 @@ void Window::goto_line_entry() {
           auto line = stoi(content);
           if(line>0 && line<=view->get_buffer()->get_line_count()) {
             line--;
-            
+
             while(g_main_context_pending(NULL))
               g_main_context_iteration(NULL, false);
             if(notebook.get_current_page()!=-1 && notebook.get_current_view()==view) {
@@ -869,7 +869,7 @@ void Window::goto_line_entry() {
             }
           }
         }
-        catch(const std::exception &e) {}  
+        catch(const std::exception &e) {}
         entry_box.hide();
       }
     });

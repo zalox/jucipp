@@ -6,8 +6,6 @@
 #include "logging.h"
 #include "python_interpreter.h"
 
-using namespace std; //TODO: remove
-
 int Application::on_command_line(const Glib::RefPtr<Gio::ApplicationCommandLine> &cmd) {
   Glib::set_prgname("juci");
   Glib::OptionContext ctx("[PATH ...]");
@@ -31,8 +29,7 @@ int Application::on_command_line(const Glib::RefPtr<Gio::ApplicationCommandLine>
         boost::system::error_code ec;
         auto new_p=boost::filesystem::canonical(parent_p, ec);
         if(!ec && boost::filesystem::is_directory(new_p)) {
-          new_p+="/";
-          new_p+=p.filename();
+          new_p/=p.filename();
           files.emplace_back(new_p);
         }
         else

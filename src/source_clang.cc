@@ -2,9 +2,6 @@
 #include "config.h"
 #include "terminal.h"
 
-#include <iostream> //TODO: remove
-using namespace std; //TODO: remove
-
 namespace sigc {
 #ifndef SIGC_FUNCTORS_DEDUCE_RESULT_TYPE_WITH_DECLTYPE
   template <typename Functor>
@@ -664,7 +661,7 @@ Source::ClangViewParse(file_path, project_path, language), autocomplete_state(Au
     return false;
   });
   
-  autocomplete_error_connection=autocomplete_done.connect([this](){
+  autocomplete_done_connection=autocomplete_done.connect([this](){
     if(autocomplete_state==AutocompleteState::CANCELED) {
       set_status("");
       soft_reparse();
@@ -932,6 +929,7 @@ bool Source::ClangViewAutocomplete::full_reparse() {
       if(!parse_state.compare_exchange_strong(expected, ParseState::RESTARTING))
         return false;
     }
+    autocomplete_state=AutocompleteState::IDLE;
     soft_reparse_needed=false;
     full_reparse_running=true;
     if(full_reparse_thread.joinable())
@@ -1397,7 +1395,7 @@ void Source::ClangView::async_delete() {
   parse_postprocess_connection.disconnect();
   parse_preprocess_connection.disconnect();
   parse_error_connection.disconnect();
-  autocomplete_error_connection.disconnect();
+  autocomplete_done_connection.disconnect();
   autocomplete_restart_connection.disconnect();
   autocomplete_error_connection.disconnect();
   do_restart_parse_connection.disconnect();

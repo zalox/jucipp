@@ -111,7 +111,17 @@ pybind11::handle PythonInterpreter::exec(const std::string &method_qualifier){
   }
   pybind11::handle func = module->second.attr(method.c_str());
   if (func && PyCallable_Check(func.ptr())) {
-    return func.call();
+    try {
+      return func.call();
+    } catch (std::exception &ex) {
+      if (PyErr_Occurred() != nullptr)
+        PyErr_Print();
+      std::string str("Error:\n");
+      str += ex.what();
+      str += "\n";
+      Terminal::get().print(str);
+      return nullptr;
+    }
   }
   return nullptr;
 }
@@ -134,4 +144,41 @@ pybind11::handle PythonInterpreter::exec(const std::string &method_qualifier,
     return func.call(std::forward<Args>(args)...);
   }
   return nullptr;
+}
+
+
+bool PythonInterpreter::parse_syntax_error(std::string &error_msg, std::string &error, int &line_number, int &offset) {
+  pybind11::handle obj;
+  if ((obj = PyErr_Occurred()) && PyErr_GivenExceptionMatches(obj.ptr(), PyExc_SyntaxError)) {
+    _Py_IDENTIFIER(msg); // declares PyID_msg
+    _Py_IDENTIFIER(lineno);
+    _Py_IDENTIFIER(offset);
+    _Py_IDENTIFIER(text);
+    /**
+     * text should contain the error
+     */
+    PyObject *exception, *value, *traceback;
+    PyErr_Fetch(&exception, &value, &traceback);
+    PyErr_NormalizeException(&exception, &value, &traceback);
+    pybind11::object py_exception(exception, false);
+    pybind11::object py_value(value, false);
+    pybind11::object py_traceback(traceback, false);
+    PyErr_Restore(exception, value, traceback); // "catches" the exception
+    pybind11::str py_error_msg(_PyObject_GetAttrId(py_value.ptr(), &PyId_msg), false);
+    pybind11::str py_error_text(_PyObject_GetAttrId(py_value.ptr(), &PyId_text), false);
+    pybind11::object py_line_number(_PyObject_GetAttrId(py_value.ptr(), &PyId_lineno), false);
+    pybind11::object py_line_offset(_PyObject_GetAttrId(py_value.ptr(), &PyId_offset), false);
+    if (py_line_number.ptr() != Py_None &&
+        py_line_offset.ptr() != Py_None &&
+        py_error_msg.ptr() != Py_None &&
+        py_error_text.ptr() != Py_None)
+    {
+      line_number = PyLong_AsLong(py_line_number.ptr()); // TODO these pymethod can produce pyerrors
+      offset = PyLong_AsLong(py_line_offset.ptr());
+      error_msg = std::string(py_error_msg);
+      error = std::string(py_error_text);
+      return true;
+    }
+  }
+  return false;
 }

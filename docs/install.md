@@ -1,5 +1,14 @@
 # juCi++ Installation Guide
 
+- Linux
+  - [Debian/Ubuntu 15](#debianubuntu-15)
+  - [Ubuntu 14/Linux Mint 17](#ubuntu-14linux-mint-17)
+  - [Arch Linux](#arch-linux)
+- OS X
+  - [Homebrew](#os-x-with-homebrew-httpbrewsh)
+- Windows
+  - [MSYS 2](#windows-with-msys2-httpsmsys2githubio)
+
 ## Debian/Ubuntu 15
 Install dependencies:
 ```sh
@@ -10,8 +19,9 @@ sudo apt-get install clang-format-3.6 || sudo apt-get install clang-format-3.5
 Get juCi++ source, compile and install:
 ```sh
 git clone --recursive https://github.com/cppit/jucipp
-cd jucipp
-cmake .
+mkdir jucipp/build
+cd jucipp/build
+cmake ..
 make
 sudo make install
 ```
@@ -25,13 +35,19 @@ sudo apt-get install git cmake make g++ libclang-3.6-dev clang-format-3.6 pkg-co
 Get juCi++ source, compile and install:
 ```sh
 git clone --recursive https://github.com/cppit/jucipp
-cd jucipp
-cmake .
+mkdir jucipp/build
+cd jucipp/build
+cmake ..
 make
 sudo make install
 ```
 
 ##Arch Linux
+Package available in the Arch User Repository:
+https://aur.archlinux.org/packages/jucipp-git/
+
+Alternatively, follow the instructions below.
+
 Install dependencies:
 ```sh
 #as root
@@ -41,8 +57,9 @@ pacman -S git cmake make clang gtksourceviewmm boost aspell aspell-en
 Get juCi++ source, compile and install:
 ```sh
 git clone --recursive https://github.com/cppit/jucipp
-cd jucipp
-cmake .
+mkdir jucipp/build
+cd jucipp/build
+cmake ..
 make
 # as root
 make install
@@ -57,8 +74,9 @@ brew install cmake --with-clang llvm pkg-config boost homebrew/x11/gtksourceview
 Get juCi++ source, compile and install:
 ```sh
 git clone --recursive https://github.com/cppit/jucipp
-cd jucipp
-cmake .
+mkdir jucipp/build
+cd jucipp/build
+cmake ..
 make
 make install
 ```
@@ -72,8 +90,9 @@ pacman -S git mingw-w64-x86_64-cmake make mingw-w64-x86_64-toolchain mingw-w64-x
 Get juCi++ source, compile and install (replace `mingw64` with `mingw32` for 32-bit MSYS2 installs):
 ```sh
 git clone --recursive https://github.com/cppit/jucipp
-cd jucipp
-cmake -G"MSYS Makefiles" -DCMAKE_INSTALL_PREFIX=/mingw64 .
+mkdir jucipp/build
+cd jucipp/build
+cmake -G"MSYS Makefiles" -DCMAKE_INSTALL_PREFIX=/mingw64 ..
 make
 make install
 ```

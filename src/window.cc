@@ -24,7 +24,7 @@ namespace sigc {
 Window::Window() : compiling(false) {
   JDEBUG("start");
   set_title("juCi++");
-  set_events(Gdk::POINTER_MOTION_MASK|Gdk::FOCUS_CHANGE_MASK|Gdk::SCROLL_MASK);
+  set_events(Gdk::POINTER_MOTION_MASK|Gdk::FOCUS_CHANGE_MASK|Gdk::SCROLL_MASK|Gdk::LEAVE_NOTIFY_MASK);
   set_menu_actions();
   configure();
   set_default_size(Config::get().window.default_size.first, Config::get().window.default_size.second);
@@ -420,6 +420,7 @@ void Window::set_menu_actions() {
             if(notebook.get_current_page()!=-1 && notebook.get_current_view()==view) {
               view->get_buffer()->place_cursor(view->get_buffer()->get_iter_at_line_index(line, index));
               view->scroll_to(view->get_buffer()->get_insert(), 0.0, 1.0, 0.5);
+              view->delayed_tooltips_connection.disconnect();
             }
           }
         }
@@ -526,17 +527,41 @@ void Window::set_menu_actions() {
       return;
     CMake cmake(cmake_path);
     auto executables = cmake.get_functions_parameters("add_executable");
+    
+    //Attempt to find executable based add_executable files and opened tab
     boost::filesystem::path executable_path;
-    if(executables.size()>0 && executables[0].second.size()>0) {
-      executable_path=executables[0].first.parent_path();
-      executable_path+="/"+executables[0].second[0];
+    if(notebook.get_current_page()!=-1) {
+      for(auto &executable: executables) {
+        if(executable.second.size()>1) {
+          for(size_t c=1;c<executable.second.size();c++) {
+            if(executable.second[c]==notebook.get_current_view()->file_path.filename()) {
+              executable_path=executable.first.parent_path()/executable.second[0];
+              break;
+            }
+          }
+        }
+        if(!executable_path.empty())
+          break;
+      }
     }
+    if(executable_path.empty() && executables.size()>0 && executables[0].second.size()>0)
+      executable_path=executables[0].first.parent_path()/executables[0].second[0];
+    
     if(cmake.project_path!="") {
       if(executable_path!="") {
-        compiling=true;
-        Terminal::get().print("Compiling and running "+executable_path.string()+"\n");
         auto project_path=cmake.project_path;
-        Terminal::get().async_process(Config::get().terminal.make_command, cmake.project_path, [this, executable_path, project_path](int exit_status){
+        auto default_build_path=CMake::get_default_build_path(project_path);
+        if(default_build_path.empty())
+          return;
+        compiling=true;
+        auto executable_path_string=executable_path.string();
+        size_t pos=executable_path_string.find(project_path.string());
+        if(pos!=std::string::npos) {
+          executable_path_string.replace(pos, project_path.string().size(), default_build_path.string());
+          executable_path=executable_path_string;
+        }
+        Terminal::get().print("Compiling and running "+executable_path.string()+"\n");
+        Terminal::get().async_process(Config::get().terminal.make_command, default_build_path, [this, executable_path, default_build_path](int exit_status){
           compiling=false;
           if(exit_status==EXIT_SUCCESS) {
             auto executable_path_spaces_fixed=executable_path.string();
@@ -548,7 +573,7 @@ void Window::set_menu_actions() {
               }
               last_char=executable_path_spaces_fixed[c];
             }
-            Terminal::get().async_process(executable_path_spaces_fixed, project_path, [this, executable_path](int exit_status){
+            Terminal::get().async_process(executable_path_spaces_fixed, default_build_path, [this, executable_path](int exit_status){
               Terminal::get().async_print(executable_path.string()+" returned: "+std::to_string(exit_status)+'\n');
             });
           }
@@ -573,9 +598,12 @@ void Window::set_menu_actions() {
       return;
     CMake cmake(cmake_path);
     if(cmake.project_path!="") {
+      auto default_build_path=CMake::get_default_build_path(cmake.project_path);
+      if(default_build_path.empty())
+        return;
       compiling=true;
       Terminal::get().print("Compiling project "+cmake.project_path.string()+"\n");
-      Terminal::get().async_process(Config::get().terminal.make_command, cmake.project_path, [this](int exit_status){
+      Terminal::get().async_process(Config::get().terminal.make_command, default_build_path, [this](int exit_status){
         compiling=false;
       });
     }
@@ -600,7 +628,7 @@ void Window::set_menu_actions() {
         });
       }
       entry_box.hide();
-    });
+    }, 30);
     auto entry_it=entry_box.entries.begin();
     entry_it->set_placeholder_text("Command");
     entry_box.buttons.emplace_back("Run command", [this, entry_it](){

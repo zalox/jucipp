@@ -10,47 +10,75 @@ CMake::CMake(const boost::filesystem::path &path) {
     for(auto &line: filesystem::read_lines(cmake_path)) {
       const boost::regex project_regex("^ *project *\\(.*$");
       boost::smatch sm;
-      if(boost::regex_match(line, sm, project_regex)) {
+      if(boost::regex_match(line, sm, project_regex))
         return true;
-      }
     }
     return false;
   };
   
   auto search_path=path;
-  auto search_cmake_path=search_path;
-  search_cmake_path+="/CMakeLists.txt";
-  if(boost::filesystem::exists(search_cmake_path))
-    paths.emplace(paths.begin(), search_cmake_path);
-  if(find_cmake_project(search_cmake_path))
-    project_path=search_path;
-  else {
-    do {
-      search_path=search_path.parent_path();
-      search_cmake_path=search_path;
-      search_cmake_path+="/CMakeLists.txt";
-      if(boost::filesystem::exists(search_cmake_path))
-        paths.emplace(paths.begin(), search_cmake_path);
-      if(find_cmake_project(search_cmake_path)) {
-        project_path=search_path;
-        break;
-      }
-    } while(search_path!=search_path.root_directory());
+  while(true) {
+    auto search_cmake_path=search_path/"CMakeLists.txt";
+    if(boost::filesystem::exists(search_cmake_path))
+      paths.emplace(paths.begin(), search_cmake_path);
+    else
+      break;
+    if(find_cmake_project(search_cmake_path)) {
+      project_path=search_path;
+      break;
+    }
+    if(search_path==search_path.root_directory())
+      break;
+    search_path=search_path.parent_path();
   }
+  
   if(!project_path.empty()) {
-    if(boost::filesystem::exists(project_path/"CMakeLists.txt") && !boost::filesystem::exists(project_path/"compile_commands.json"))
+    auto default_build_path=get_default_build_path(project_path);
+    if(!default_build_path.empty() && !boost::filesystem::exists(default_build_path/"compile_commands.json"))
       create_compile_commands(project_path);
   }
 }
 
+boost::filesystem::path CMake::get_default_build_path(const boost::filesystem::path &path) {
+  boost::filesystem::path default_build_path=Config::get().terminal.default_build_path;
+  
+  const std::string path_variable_project_directory_name="<project_directory_name>";
+  size_t pos=0;
+  auto default_build_path_string=default_build_path.string();
+  auto path_filename_string=path.filename().string();
+  while((pos=default_build_path_string.find(path_variable_project_directory_name, pos))!=std::string::npos) {
+    default_build_path_string.replace(pos, path_variable_project_directory_name.size(), path_filename_string);
+    pos+=path_filename_string.size();
+  }
+  if(pos!=0)
+    default_build_path=default_build_path_string;
+  
+  if(default_build_path.is_relative())
+    default_build_path=path/default_build_path;
+    
+  if(!boost::filesystem::exists(default_build_path)) {
+    boost::system::error_code ec;
+    boost::filesystem::create_directories(default_build_path, ec);
+    if(ec) {
+      Terminal::get().print("Error: could not create "+default_build_path.string()+": "+ec.message()+"\n", true);
+      return boost::filesystem::path();
+    }
+  }
+  
+  return default_build_path;
+}
+
 bool CMake::create_compile_commands(const boost::filesystem::path &path) {
-  Dialog::Message message("Creating "+path.string()+"/compile_commands.json");
-  auto exit_status=Terminal::get().process(Config::get().terminal.cmake_command+" . -DCMAKE_EXPORT_COMPILE_COMMANDS=ON", path);
+  auto default_build_path=get_default_build_path(path);
+  if(default_build_path.empty())
+    return false;
+  auto compile_commands_path=default_build_path/"compile_commands.json";
+  Dialog::Message message("Creating "+compile_commands_path.string());
+  auto exit_status=Terminal::get().process(Config::get().terminal.cmake_command+" "+
+                                           path.string()+" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON", default_build_path);
   message.hide();
   if(exit_status==EXIT_SUCCESS) {
 #ifdef _WIN32 //Temporary fix to MSYS2's libclang
-    auto compile_commands_path=path;
-    compile_commands_path+="/compile_commands.json";
     auto compile_commands_file=filesystem::read(compile_commands_path);
     size_t pos=0;
     while((pos=compile_commands_file.find("-I/", pos))!=std::string::npos) {
@@ -140,14 +168,23 @@ void CMake::find_variables() {
         end_line=file.size();
       if(end_line>start_line) {
         auto line=file.substr(start_line, end_line-start_line);
-        const boost::regex set_regex("^ *set *\\( *([A-Za-z_][A-Za-z_0-9]*) +(.*)\\) *$");
         boost::smatch sm;
+        const boost::regex set_regex("^ *set *\\( *([A-Za-z_][A-Za-z_0-9]*) +(.*)\\) *$");
         if(boost::regex_match(line, sm, set_regex)) {
           auto data=sm[2].str();
           while(data.size()>0 && data.back()==' ')
             data.pop_back();
           parse_variable_parameters(data);
           variables[sm[1].str()]=data;
+        }
+        else {
+          const boost::regex project_regex("^ *project *\\( *([^ ]+).*\\) *$");
+          if(boost::regex_match(line, sm, project_regex)) {
+            auto data=sm[1].str();
+            parse_variable_parameters(data);
+            variables["CMAKE_PROJECT_NAME"]=data; //TODO: is this variable deprecated/non-standard?
+            variables["PROJECT_NAME"]=data;
+          }
         }
       }
       pos=end_line+1;

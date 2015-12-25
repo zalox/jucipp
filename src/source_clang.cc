@@ -1,6 +1,7 @@
 #include "source_clang.h"
 #include "config.h"
 #include "terminal.h"
+#include "cmake.h"
 
 namespace sigc {
 #ifndef SIGC_FUNCTORS_DEDUCE_RESULT_TYPE_WITH_DECLTYPE
@@ -98,8 +99,8 @@ void Source::ClangViewParse::configure() {
   }
   
   bracket_regex=boost::regex("^([ \\t]*).*\\{ *$");
-  no_bracket_statement_regex=boost::regex("^([ \\t]*)(if|for|else if|catch|while) *\\(.*[^;}] *$");
-  no_bracket_no_para_statement_regex=boost::regex("^([ \\t]*)(else|try|do) *$");
+  no_bracket_statement_regex=boost::regex("^([ \\t]*)(if|for|else if|while) *\\(.*[^;}] *$");
+  no_bracket_no_para_statement_regex=boost::regex("^([ \\t]*)(else) *$");
 }
 
 void Source::ClangViewParse::parse_initialize() {
@@ -178,7 +179,7 @@ void Source::ClangViewParse::soft_reparse() {
 }
 
 std::vector<std::string> Source::ClangViewParse::get_compilation_commands() {
-  clang::CompilationDatabase db(project_path.string());
+  clang::CompilationDatabase db(CMake::get_default_build_path(project_path).string());
   clang::CompileCommands commands(file_path.string(), db);
   std::vector<clang::CompileCommand> cmds = commands.get_commands();
   std::vector<std::string> arguments;
@@ -194,11 +195,16 @@ std::vector<std::string> Source::ClangViewParse::get_compilation_commands() {
   if(boost::regex_match(clang_version_string, sm, clang_version_regex)) {
     auto clang_version=sm[1].str();
     arguments.emplace_back("-I/usr/lib/clang/"+clang_version+"/include");
+#ifdef __APPLE__
     arguments.emplace_back("-I/usr/local/Cellar/llvm/"+clang_version+"/lib/clang/"+clang_version+"/include");
+    arguments.emplace_back("-I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1");
+#endif
+#ifdef _WIN32
     arguments.emplace_back("-IC:/msys32/mingw32/lib/clang/"+clang_version+"/include");
     arguments.emplace_back("-IC:/msys32/mingw64/lib/clang/"+clang_version+"/include");
     arguments.emplace_back("-IC:/msys64/mingw32/lib/clang/"+clang_version+"/include");
     arguments.emplace_back("-IC:/msys64/mingw64/lib/clang/"+clang_version+"/include");
+#endif
   }
   arguments.emplace_back("-fretain-comments-from-system-headers");
   if(file_path.extension()==".h") //TODO: temporary fix for .h-files (parse as c++)
@@ -422,7 +428,7 @@ void Source::ClangViewParse::show_type_tooltips(const Gdk::Rectangle &rectangle)
 
 //Clang indentation.
 bool Source::ClangViewParse::on_key_press_event(GdkEventKey* key) {
-  if(spellcheck_suggestions_dialog_shown) {
+  if(spellcheck_suggestions_dialog && spellcheck_suggestions_dialog->shown) {
     if(spellcheck_suggestions_dialog->on_key_press(key))
       return true;
   }
@@ -599,6 +605,31 @@ bool Source::ClangViewParse::on_key_press_event(GdkEventKey* key) {
     get_source_buffer()->end_user_action();
     return true;
   }
+  //Indent left when writing { on a new line after for instance if(...)\n...
+  else if(key->keyval==GDK_KEY_braceleft) {
+    auto iter=get_buffer()->get_insert()->get_iter();
+    auto tabs_end_iter=get_tabs_end_iter();
+    auto tabs=get_line_before(tabs_end_iter);
+    size_t line_nr=iter.get_line();
+    if(line_nr>0 && tabs.size()>=tab_size && iter==tabs_end_iter) {
+      std::string previous_line=get_line(line_nr-1);
+      boost::smatch sm;
+      if(!boost::regex_match(previous_line, sm, bracket_regex)) {
+        auto start_iter=iter;
+        start_iter.backward_chars(tab_size);
+        if(boost::regex_match(previous_line, sm, no_bracket_statement_regex) ||
+           boost::regex_match(previous_line, sm, no_bracket_no_para_statement_regex)) {
+          if((tabs.size()-tab_size)==sm[1].str().size()) {
+            get_buffer()->erase(start_iter, iter);
+            get_buffer()->insert_at_cursor("{");
+            scroll_to(get_buffer()->get_insert());
+            get_buffer()->end_user_action();
+            return true;
+          }
+        }
+      }
+    }
+  }
   
   get_source_buffer()->end_user_action();
   return Source::View::on_key_press_event(key);
@@ -610,7 +641,7 @@ bool Source::ClangViewParse::on_key_press_event(GdkEventKey* key) {
 Source::ClangViewAutocomplete::ClangViewAutocomplete(const boost::filesystem::path &file_path, const boost::filesystem::path& project_path, Glib::RefPtr<Gsv::Language> language):
 Source::ClangViewParse(file_path, project_path, language), autocomplete_state(AutocompleteState::IDLE) {
   get_buffer()->signal_changed().connect([this](){
-    if(autocomplete_state==AutocompleteState::SHOWN)
+    if(autocomplete_dialog && autocomplete_dialog->shown)
       delayed_reparse_connection.disconnect();
     else {
       if(!has_focus())
@@ -621,7 +652,7 @@ Source::ClangViewParse(file_path, project_path, language), autocomplete_state(Au
         autocomplete_check();
       }
       else {
-        if(autocomplete_state==AutocompleteState::STARTING)
+        if(autocomplete_state==AutocompleteState::STARTING || autocomplete_state==AutocompleteState::RESTARTING)
           autocomplete_state=AutocompleteState::CANCELED;
         else {
           auto iter=get_buffer()->get_insert()->get_iter();
@@ -633,19 +664,12 @@ Source::ClangViewParse(file_path, project_path, language), autocomplete_state(Au
   });
   get_buffer()->signal_mark_set().connect([this](const Gtk::TextBuffer::iterator& iterator, const Glib::RefPtr<Gtk::TextBuffer::Mark>& mark){
     if(mark->get_name()=="insert") {
-      if(autocomplete_state==AutocompleteState::SHOWN)
-        autocomplete_dialog->hide();
-      if(autocomplete_state==AutocompleteState::STARTING)
+      if(autocomplete_state==AutocompleteState::STARTING || autocomplete_state==AutocompleteState::RESTARTING)
         autocomplete_state=AutocompleteState::CANCELED;
     }
   });
-  signal_scroll_event().connect([this](GdkEventScroll* event){
-    if(autocomplete_state==AutocompleteState::SHOWN)
-        autocomplete_dialog->hide();
-    return false;
-  }, false);
   signal_key_release_event().connect([this](GdkEventKey* key){
-    if(autocomplete_state==AutocompleteState::SHOWN) {
+    if(autocomplete_dialog && autocomplete_dialog->shown) {
       if(autocomplete_dialog->on_key_release(key))
         return true;
     }
@@ -654,15 +678,18 @@ Source::ClangViewParse(file_path, project_path, language), autocomplete_state(Au
   }, false);
 
   signal_focus_out_event().connect([this](GdkEventFocus* event) {
-    if(autocomplete_state==AutocompleteState::SHOWN)
-      autocomplete_dialog->hide();
-    if(autocomplete_state==AutocompleteState::STARTING)
+    if(autocomplete_state==AutocompleteState::STARTING || autocomplete_state==AutocompleteState::RESTARTING)
       autocomplete_state=AutocompleteState::CANCELED;
     return false;
   });
   
   autocomplete_done_connection=autocomplete_done.connect([this](){
     if(autocomplete_state==AutocompleteState::CANCELED) {
+      set_status("");
+      soft_reparse();
+      autocomplete_state=AutocompleteState::IDLE;
+    }
+    else if(autocomplete_state==AutocompleteState::RESTARTING) {
       set_status("");
       soft_reparse();
       autocomplete_state=AutocompleteState::IDLE;
@@ -693,15 +720,13 @@ Source::ClangViewParse(file_path, project_path, language), autocomplete_state(Au
         }
       }
       set_status("");
+      autocomplete_state=AutocompleteState::IDLE;
       if (!autocomplete_dialog_rows.empty()) {
-        autocomplete_state=AutocompleteState::SHOWN;
         get_source_buffer()->begin_user_action();
         autocomplete_dialog->show();
       }
-      else {
-        autocomplete_state=AutocompleteState::IDLE;
+      else
         soft_reparse();
-      }
     }
   });
   
@@ -728,7 +753,7 @@ Source::ClangViewParse(file_path, project_path, language), autocomplete_state(Au
 
 bool Source::ClangViewAutocomplete::on_key_press_event(GdkEventKey *key) {
   last_keyval=key->keyval;
-  if(autocomplete_state==AutocompleteState::SHOWN) {
+  if(autocomplete_dialog && autocomplete_dialog->shown) {
     if(autocomplete_dialog->on_key_press(key))
       return true;
   }
@@ -743,7 +768,6 @@ void Source::ClangViewAutocomplete::autocomplete_dialog_setup() {
   autocomplete_dialog_rows.clear();
   autocomplete_dialog->on_hide=[this](){
     get_source_buffer()->end_user_action();
-    autocomplete_state=AutocompleteState::IDLE;
     parsed=false;
     soft_reparse();
   };
@@ -759,7 +783,6 @@ void Source::ClangViewAutocomplete::autocomplete_dialog_setup() {
     }
     get_buffer()->insert(autocomplete_dialog->start_mark->get_iter(), row);
     if(hide_window) {
-      autocomplete_state=AutocompleteState::IDLE;
       auto para_pos=row.find('(');
       auto angle_pos=row.find('<');
       size_t start_pos=std::string::npos;
@@ -793,10 +816,8 @@ void Source::ClangViewAutocomplete::autocomplete_dialog_setup() {
       else {
         //new autocomplete after for instance when selecting "std::"
         auto iter=get_buffer()->get_insert()->get_iter();
-        if(iter.backward_char() && *iter==':') {
-          autocomplete_state=AutocompleteState::IDLE;
+        if(iter.backward_char() && *iter==':')
           autocomplete_restart();
-        }
       }
     }
   };
@@ -815,14 +836,14 @@ void Source::ClangViewAutocomplete::autocomplete_check() {
     prefix_mutex.lock();
     prefix=sm[3].str();
     prefix_mutex.unlock();
-    if(autocomplete_state==AutocompleteState::IDLE && (prefix.size()==0 || prefix[0]<'0' || prefix[0]>'9'))
+    if(prefix.size()==0 || prefix[0]<'0' || prefix[0]>'9')
       autocomplete();
   }
   else if(boost::regex_match(line, sm, within_namespace)) {
     prefix_mutex.lock();
     prefix=sm[3].str();
     prefix_mutex.unlock();
-    if(autocomplete_state==AutocompleteState::IDLE && (prefix.size()==0 || prefix[0]<'0' || prefix[0]>'9'))
+    if(prefix.size()==0 || prefix[0]<'0' || prefix[0]>'9')
       autocomplete();
   }
   if(autocomplete_state!=AutocompleteState::IDLE)
@@ -832,12 +853,13 @@ void Source::ClangViewAutocomplete::autocomplete_check() {
 void Source::ClangViewAutocomplete::autocomplete() {
   if(parse_state!=ParseState::PROCESSING)
     return;
-  if(autocomplete_state==AutocompleteState::STARTING) {
-    autocomplete_state=AutocompleteState::CANCELED;
-    return;
-  }
+  
   if(autocomplete_state==AutocompleteState::CANCELED)
+    autocomplete_state=AutocompleteState::RESTARTING;
+  
+  if(autocomplete_state!=AutocompleteState::IDLE)
     return;
+
   autocomplete_state=AutocompleteState::STARTING;
   
   autocomplete_data.clear();
@@ -968,26 +990,44 @@ Source::ClangViewAutocomplete(file_path, project_path, language) {
   
   auto_indent=[this]() {
     auto command=Config::get().terminal.clang_format_command;
-    unsigned indent_width;
-    std::string tab_style;
-    if(tab_char=='\t') {
-      indent_width=tab_size*8;
-      tab_style="UseTab: Always";
+    bool use_style_file=false;
+    
+    auto style_file_search_path=this->file_path.parent_path();
+    while(true) {
+      auto style_file=style_file_search_path/"CMakeLists.txt";
+      if(boost::filesystem::exists(style_file_search_path/".clang-format") || boost::filesystem::exists(style_file_search_path/"_clang-format")) {
+        use_style_file=true;
+        break;
+      }
+      if(style_file_search_path==style_file_search_path.root_directory())
+        break;
+      style_file_search_path=style_file_search_path.parent_path();
     }
+    
+    if(use_style_file)
+      command+=" -style=file";
     else {
-      indent_width=tab_size;
-      tab_style="UseTab: Never";
+      unsigned indent_width;
+      std::string tab_style;
+      if(tab_char=='\t') {
+        indent_width=tab_size*8;
+        tab_style="UseTab: Always";
+      }
+      else {
+        indent_width=tab_size;
+        tab_style="UseTab: Never";
+      }
+      command+=" -style=\"{IndentWidth: "+std::to_string(indent_width);
+      command+=", "+tab_style;
+      command+=", "+std::string("AccessModifierOffset: -")+std::to_string(indent_width);
+      if(Config::get().source.clang_format_style!="")
+        command+=", "+Config::get().source.clang_format_style;
+      command+="}\"";
     }
-    command+=" -style=\"{IndentWidth: "+std::to_string(indent_width);
-    command+=", "+tab_style;
-    command+=", "+std::string("AccessModifierOffset: -")+std::to_string(indent_width);
-    if(Config::get().source.clang_format_style!="")
-      command+=", "+Config::get().source.clang_format_style;
-    command+="}\"";
     
     std::stringstream stdin_stream(get_buffer()->get_text()), stdout_stream;
     
-    auto exit_status=Terminal::get().process(stdin_stream, stdout_stream, command);
+    auto exit_status=Terminal::get().process(stdin_stream, stdout_stream, command, this->file_path.parent_path());
     if(exit_status==0) {
       get_source_buffer()->begin_user_action();
       auto iter=get_buffer()->get_insert()->get_iter();

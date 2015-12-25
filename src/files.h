@@ -2,7 +2,7 @@
 #define JUCI_FILES_H_
 #include <string>
 
-#define JUCI_VERSION "1.0.0"
+#define JUCI_VERSION "1.0.1"
 
 const std::string configjson =
 "{\n"
@@ -107,12 +107,14 @@ const std::string configjson =
 "        \"close_tab\": \"<primary>w\"\n"
 "    },\n"
 "    \"project\": {\n"
+"        \"default_build_path_comment\": \"Use <project_directory_name> to insert the project top level directory name\",\n"
+"        \"default_build_path\": \"./build\",\n"
 #ifdef _WIN32
 "        \"cmake_command\": \"cmake -G\\\"MSYS Makefiles\\\" -DCMAKE_INSTALL_PREFIX="+JUCI_CMAKE_INSTALL_PREFIX+"\",\n"
 #else
 "        \"cmake_command\": \"cmake\",\n"
 #endif
-"        \"make_command\": \"make\"\n"
+"        \"make_command\": \"cmake --build .\"\n"
 "    },\n"
 "    \"documentation_searches\": {\n"
 "        \"clang\": {\n"

@@ -360,7 +360,7 @@ Glib::RefPtr<Gtk::Builder> Menu::build() {
     for (auto &json : plugin_entries) {
       auto main_menu = json.get<std::string>("main_menu", "");
       if(main_menu.empty()) {
-        Terminal::get().print("Could't parse json, main_menu element missing");
+        Terminal::get().print("Couldn't parse json, main_menu element missing\n");
         continue;
       }
       boost::property_tree::ptree *add_into = nullptr;
@@ -380,7 +380,7 @@ Glib::RefPtr<Gtk::Builder> Menu::build() {
           if (!label.empty() && !action.empty()){
             add_into->add_child("item", g.generate_item(label, action, accels[label]));
           } else {
-            Terminal::get().print("Could not parse json, item has no action or label");
+            Terminal::get().print("Couldn't parse json, item has no action or label\n");
           }
         } else if(elem.first == "submenu") {
           auto label = elem.second.get<std::string>("label", "");
@@ -395,7 +395,7 @@ Glib::RefPtr<Gtk::Builder> Menu::build() {
               if (!label.empty() && !action.empty()){
                 submenu.add_child("item", g.generate_item(label, action, accels[label]));
               } else {
-                Terminal::get().print("Could not parse json, submenu item has no action or label");
+                Terminal::get().print("Couldn't parse json, submenu item has no action or label\n");
               }
             }
           }

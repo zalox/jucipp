@@ -77,7 +77,7 @@ bool PythonInterpreter::import(const std::string &module_name) {
       return true;
     }
     PyErr_Print();
-    Terminal::get().print("Error while loading plugin "+module_name+", check syntax");
+    Terminal::get().print("Error while loading plugin " + module_name + ", check syntax\n");
     return false;
   } else {
     pybind11::handle reload_module(PyImport_ReloadModule(module->second.ptr()));
@@ -89,7 +89,7 @@ bool PythonInterpreter::import(const std::string &module_name) {
       PyErr_Print();
       reload_module.dec_ref();
       //TODO print syntax errors or add linter to Source::View
-      Terminal::get().print("Error while reloading plugin "+module_name+", check syntax");
+      Terminal::get().print("Error while reloading plugin " + module_name + ", check syntax\n");
       return false;
     }
   }

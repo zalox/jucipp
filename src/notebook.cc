@@ -6,6 +6,7 @@
 #include <regex>
 #include "cmake.h"
 #include "filesystem.h"
+#include "source_python.h"
 
 #if GTKSOURCEVIEWMM_MAJOR_VERSION > 2 & GTKSOURCEVIEWMM_MINOR_VERSION > 17
 #include "gtksourceview-3.0/gtksourceview/gtksourcemap.h"
@@ -120,6 +121,8 @@ void Notebook::open(const boost::filesystem::path &file_path) {
       CMake::create_compile_commands(project_path);
     source_views.emplace_back(new Source::ClangView(file_path, project_path, language));
   }
+  else if (language && language->get_id()=="python")
+    source_views.emplace_back(new Source::PythonView(file_path, project_path, language));
   else
     source_views.emplace_back(new Source::GenericView(file_path, project_path, language));
   

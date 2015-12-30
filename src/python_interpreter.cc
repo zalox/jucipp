@@ -44,6 +44,31 @@ PythonInterpreter::PythonInterpreter() {
   }
 }
 
+std::string PythonInterpreter::generate_mock(pybind11::dict &dict, const std::string &indent)  {
+  std::string name(pybind11::str(dict["__name__"], false));
+  std::string class_name;
+  auto pos = name.rfind('.');
+  if (pos != std::string::npos)
+    class_name = name.substr(pos+1, name.size());
+  else
+    class_name = name;
+  
+  std::string res = indent + "class " + class_name + ":\n";
+  for (const auto item : dict) {
+    std::string key(item.first.str()), value(item.second.str());
+    if(key.substr(0, 2) == "__") {
+        continue;
+    } else if (value.substr(0, 2) == "<m") {
+      pybind11::module submodule(PyImport_AddModule(std::string(name+"."+key).c_str()), false);
+      pybind11::dict submoduledict(PyModule_GetDict(submodule.ptr()), false);
+      res += generate_mock(submoduledict, "  ");
+    } else {
+      res += indent + "  " + key + "():\n";
+    }
+  }
+  return res;
+}
+
 PythonInterpreter::~PythonInterpreter() {
   for (auto &module : modules) {
     module.second.dec_ref();

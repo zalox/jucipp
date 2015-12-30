@@ -18,6 +18,7 @@ public:
   void init();
   static PythonInterpreter& get();
   std::unordered_map<std::string, pybind11::handle> modules;
+  std::string generate_mock(pybind11::dict &dict, const std::string &indent = "");
 private:
   PythonInterpreter();
 };

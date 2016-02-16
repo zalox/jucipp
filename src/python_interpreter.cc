@@ -76,14 +76,7 @@ bool PythonInterpreter::import(const std::string &module_name) {
       modules[module_name] = new_module;
       return true;
     }
-    std::string error_msgs, error;
-    int line_number=0, offset=0;
-    if (parse_syntax_error(error_msgs, error, line_number, offset)) {
-      std::stringstream str;
-      str<<"Error while reloading "<<module_name<<error<<"\n"
-      << error_msgs << ", position: "<<line_number<<":"<<offset<<"\n";
-      Terminal::get().print(str.str());
-    }
+    handle_syntax_error();
     return false;
   } else {
     pybind11::handle reload_module(PyImport_ReloadModule(module->second.ptr()));
@@ -93,14 +86,7 @@ bool PythonInterpreter::import(const std::string &module_name) {
       return true;
     } else {
       reload_module.dec_ref();
-      std::string error_msgs, error;
-      int line_number=0, offset=0;
-      if (parse_syntax_error(error_msgs, error, line_number, offset)) {
-        std::stringstream str;
-        str<<"Error while reloading "<<module_name<<error<<"\n"
-        << error_msgs << ", position: "<<line_number<<":"<<offset<<"\n";
-        Terminal::get().print(str.str());
-      }
+      handle_syntax_error();
       return false;
     }
   }
@@ -108,6 +94,19 @@ bool PythonInterpreter::import(const std::string &module_name) {
 
 using namespace std;
 #include <iostream>
+
+void PythonInterpreter::handle_syntax_error() {
+  std::string error_msgs, error;
+  int line_number=0, offset=0;
+  if (parse_syntax_error(error_msgs, error, line_number, offset)) {
+    std::stringstream str;
+    str << "Error while reloading,\n"
+    << error_msgs << " (" << line_number << ":" << offset << "):\n" << error;
+    Terminal::get().print(str.str());
+  } else {
+    Terminal::get().print("Error while reloading... No information given\n");
+  }
+}
 
 pybind11::handle PythonInterpreter::exec(const std::string &method_qualifier){
   auto pos = method_qualifier.rfind('.');
@@ -125,14 +124,7 @@ pybind11::handle PythonInterpreter::exec(const std::string &method_qualifier){
     try {
       return func.call();
     } catch (std::exception &ex) {
-      std::string error_msgs, error;
-      int line_number=0, offset=0;
-      if (parse_syntax_error(error_msgs, error, line_number, offset)) {
-        std::stringstream str;
-        str<<"Error while reloading "<<module_name<<error<<"\n"
-        << error_msgs << ", position: "<<line_number<<":"<<offset<<"\n";
-        Terminal::get().print(str.str());
-      }
+      handle_syntax_error();
     }
   }
   return nullptr;

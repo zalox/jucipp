@@ -17,6 +17,7 @@ public:
                         Args &&... args);
   pybind11::handle exec(const std::string &method_qualifier);
   bool parse_syntax_error(std::string &error_msgs, std::string &error, int &line_number, int &offset);
+  void handle_syntax_error();
   std::unordered_map<std::string, pybind11::handle> modules;
   private:
   PythonInterpreter();

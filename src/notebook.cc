@@ -116,8 +116,7 @@ void Notebook::open(const boost::filesystem::path &file_path) {
     }
   }
   if(language && (language->get_id()=="chdr" || language->get_id()=="cpphdr" || language->get_id()=="c" || language->get_id()=="cpp" || language->get_id()=="objc")) {
-    if(boost::filesystem::exists(project_path.string()+"/CMakeLists.txt") && !boost::filesystem::exists(CMake::get_default_build_path(project_path)/"compile_commands.json"))
-      CMake::create_compile_commands(project_path);
+    CMake::create_default_build(project_path);
     source_views.emplace_back(new Source::ClangView(file_path, project_path, language));
   }
   else
@@ -255,15 +254,18 @@ bool Notebook::save(int page) {
       if(view->file_path.filename()=="CMakeLists.txt") {
         auto &directories=Directories::get();
         if(directories.cmake && directories.cmake->project_path!="" && view->file_path.generic_string().substr(0, directories.cmake->project_path.generic_string().size()+1)==directories.cmake->project_path.generic_string()+'/') {
-          if(CMake::create_compile_commands(directories.cmake->project_path))
+          if(CMake::create_default_build(directories.cmake->project_path, true))
             project_path=directories.cmake->project_path;
         }
         else {
           CMake cmake(view->file_path.parent_path());
-          if(cmake.project_path!="" && CMake::create_compile_commands(cmake.project_path))
+          if(CMake::create_default_build(cmake.project_path, true))
             project_path=cmake.project_path;
         }
         if(project_path!="") {
+          auto debug_project_path=CMake::get_debug_build_path(project_path);
+          if(!debug_project_path.empty() && boost::filesystem::exists(debug_project_path))
+            CMake::create_debug_build(project_path);
           for(auto source_view: source_views) {
             if(auto source_clang_view=dynamic_cast<Source::ClangView*>(source_view)) {
               if(project_path==source_clang_view->project_path)
@@ -285,6 +287,19 @@ bool Notebook::save_current() {
   if(get_current_page()==-1)
     return false;
   return save(get_current_page());
+}
+
+void Notebook::save_project_files() {
+  if(get_current_page()==-1)
+    return;
+  auto current_view=get_current_view();
+  for(int c=0;c<size();c++) {
+    auto view=get_view(c);
+    if(view->get_buffer()->get_modified()) {
+      if(current_view->project_path==view->project_path)
+        save(c);
+    }
+  }
 }
 
 bool Notebook::close(int page) {
@@ -313,6 +328,7 @@ bool Notebook::close(int page) {
 #if GTKSOURCEVIEWMM_MAJOR_VERSION > 2 & GTKSOURCEVIEWMM_MINOR_VERSION > 17
     source_maps.erase(source_maps.begin()+index);
 #endif
+
     auto source_view=source_views.at(index);
     if(auto source_clang_view=dynamic_cast<Source::ClangView*>(source_view))
       source_clang_view->async_delete();

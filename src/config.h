@@ -20,11 +20,13 @@ public:
     std::string theme_variant;
     std::string version;
     std::pair<int, int> default_size;
+    bool save_on_compile_or_run;
   };
   
   class Terminal {
   public:
     std::string default_build_path;
+    std::string debug_build_path;
     std::string cmake_command;
     std::string make_command;
     std::string clang_format_command;

@@ -26,13 +26,25 @@ if(MSYS)
 endif()
 
 find_package(LibClang REQUIRED)
-
 find_package(Boost 1.54 COMPONENTS thread log regex system filesystem REQUIRED)
 find_package(ASPELL REQUIRED)
 find_package(PythonLibs 3 REQUIRED)
 set(PYBIND11_INCLUDE_DIR ../pybind11/include)
 set(LIBCLANGMM_INCLUDE_DIR ../libclangmm/src)
 set(TINY_PROCESS_INCLUDE_DIR ../tiny-process-library)
+string(REPLACE libclang liblldb LIBLLDB_LIBRARIES "${LIBCLANG_LIBRARIES}")
+if(EXISTS "${LIBLLDB_LIBRARIES}")
+  set(LIBLLDB_FOUND TRUE)
+elseif(EXISTS "${LIBLLDB_LIBRARIES}.1")
+  set(LIBLLDB_LIBRARIES "${LIBLLDB_LIBRARIES}.1")
+  set(LIBLLDB_FOUND TRUE)
+endif()
+if(LIBLLDB_FOUND)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DJUCI_ENABLE_DEBUG")
+else()
+  set(LIBLLDB_LIBRARIES "")
+  message("liblldb not found. Building juCi++ without debugging support")
+endif()
 
 include(FindPkgConfig)
 pkg_check_modules(GTKMM gtkmm-3.0 REQUIRED)
@@ -115,6 +127,10 @@ set(application_files
     ../libclangmm/src/Utility.cc
     
     ../tiny-process-library/process.cpp)
+
+if(LIBLLDB_FOUND)
+  list(APPEND source_files debug.h debug.cc)
+endif()
 
 if(MSYS)
   list(APPEND application_files dialogs_unix.cc ../tiny-process-library/process_win.cpp)

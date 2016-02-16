@@ -85,8 +85,6 @@ set(application_files
     python_api.h
     python_interpreter.cc
     python_interpreter.h
-    source_python.h
-    source_python.cc
     selectiondialog.cc
     selectiondialog.h
     source.cc

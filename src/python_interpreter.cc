@@ -44,31 +44,6 @@ PythonInterpreter::PythonInterpreter() {
   }
 }
 
-std::string PythonInterpreter::generate_mock(pybind11::dict &dict, const std::string &indent)  {
-  std::string name(pybind11::str(dict["__name__"], false));
-  std::string class_name;
-  auto pos = name.rfind('.');
-  if (pos != std::string::npos)
-    class_name = name.substr(pos+1, name.size());
-  else
-    class_name = name;
-  
-  std::string res = indent + "class " + class_name + ":\n";
-  for (const auto item : dict) {
-    std::string key(item.first.str()), value(item.second.str());
-    if(key.substr(0, 2) == "__") {
-        continue;
-    } else if (value.substr(0, 2) == "<m") {
-      pybind11::module submodule(PyImport_AddModule(std::string(name+"."+key).c_str()), false);
-      pybind11::dict submoduledict(PyModule_GetDict(submodule.ptr()), false);
-      res += generate_mock(submoduledict, "  ");
-    } else {
-      res += indent + "  " + key + "():\n";
-    }
-  }
-  return res;
-}
-
 PythonInterpreter::~PythonInterpreter() {
   for (auto &module : modules) {
     module.second.dec_ref();
@@ -101,8 +76,14 @@ bool PythonInterpreter::import(const std::string &module_name) {
       modules[module_name] = new_module;
       return true;
     }
-    PyErr_Print();
-    Terminal::get().print("Error while loading plugin " + module_name + ", check syntax\n");
+          std::string error_msgs, error;
+      int line_number=0, offset=0;
+      if (parse_syntax_error(error_msgs, error, line_number, offset)) {
+        std::stringstream str;
+        str<<"Error while reloading "<<module_name<<error<<"\n"
+        << error_msgs << ", position: "<<line_number<<":"<<offset<<"\n";
+        Terminal::get().print(str.str());
+      }
     return false;
   } else {
     pybind11::handle reload_module(PyImport_ReloadModule(module->second.ptr()));
@@ -111,10 +92,15 @@ bool PythonInterpreter::import(const std::string &module_name) {
       modules[module_name] = reload_module;
       return true;
     } else {
-      PyErr_Print();
       reload_module.dec_ref();
-      //TODO print syntax errors or add linter to Source::View
-      Terminal::get().print("Error while reloading plugin " + module_name + ", check syntax\n");
+      std::string error_msgs, error;
+      int line_number=0, offset=0;
+      if (parse_syntax_error(error_msgs, error, line_number, offset)) {
+        std::stringstream str;
+        str<<"Error while reloading "<<module_name<<error<<"\n"
+        << error_msgs << ", position: "<<line_number<<":"<<offset<<"\n";
+        Terminal::get().print(str.str());
+      }
       return false;
     }
   }
@@ -139,13 +125,14 @@ pybind11::handle PythonInterpreter::exec(const std::string &method_qualifier){
     try {
       return func.call();
     } catch (std::exception &ex) {
-      if (PyErr_Occurred() != nullptr)
-        PyErr_Print();
-      std::string str("Error:\n");
-      str += ex.what();
-      str += "\n";
-      Terminal::get().print(str);
-      return nullptr;
+      std::string error_msgs, error;
+      int line_number=0, offset=0;
+      if (parse_syntax_error(error_msgs, error, line_number, offset)) {
+        std::stringstream str;
+        str<<"Error while reloading "<<module_name<<error<<"\n"
+        << error_msgs << ", position: "<<line_number<<":"<<offset<<"\n";
+        Terminal::get().print(str.str());
+      }
     }
   }
   return nullptr;
@@ -202,6 +189,7 @@ bool PythonInterpreter::parse_syntax_error(std::string &error_msg, std::string &
       offset = PyLong_AsLong(py_line_offset.ptr());
       error_msg = std::string(py_error_msg);
       error = std::string(py_error_text);
+      PyErr_Clear();
       return true;
     }
   }

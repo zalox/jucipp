@@ -8,6 +8,8 @@
 class PythonInterpreter {
 public:
   ~PythonInterpreter();
+  static PythonInterpreter& get();
+  void init();
   void append_path(const boost::filesystem::path &path);
   bool import(const std::string &module_name);
   template <class... Args>
@@ -15,11 +17,8 @@ public:
                         Args &&... args);
   pybind11::handle exec(const std::string &method_qualifier);
   bool parse_syntax_error(std::string &error_msgs, std::string &error, int &line_number, int &offset);
-  void init();
-  static PythonInterpreter& get();
   std::unordered_map<std::string, pybind11::handle> modules;
-  std::string generate_mock(pybind11::dict &dict, const std::string &indent = "");
-private:
+  private:
   PythonInterpreter();
 };
 

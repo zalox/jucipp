@@ -76,14 +76,14 @@ bool PythonInterpreter::import(const std::string &module_name) {
       modules[module_name] = new_module;
       return true;
     }
-          std::string error_msgs, error;
-      int line_number=0, offset=0;
-      if (parse_syntax_error(error_msgs, error, line_number, offset)) {
-        std::stringstream str;
-        str<<"Error while reloading "<<module_name<<error<<"\n"
-        << error_msgs << ", position: "<<line_number<<":"<<offset<<"\n";
-        Terminal::get().print(str.str());
-      }
+    std::string error_msgs, error;
+    int line_number=0, offset=0;
+    if (parse_syntax_error(error_msgs, error, line_number, offset)) {
+      std::stringstream str;
+      str<<"Error while reloading "<<module_name<<error<<"\n"
+      << error_msgs << ", position: "<<line_number<<":"<<offset<<"\n";
+      Terminal::get().print(str.str());
+    }
     return false;
   } else {
     pybind11::handle reload_module(PyImport_ReloadModule(module->second.ptr()));

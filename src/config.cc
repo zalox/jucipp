@@ -48,7 +48,7 @@ void Config::load() {
 void Config::find_or_create_config_files() {
   auto config_dir = home/"config";
   auto config_json = config_dir/"config.json";
-  auto plugins_py = home/"plugins"/"toolsplugin.py";
+  auto toolsplugin_py = home/"plugins"/"toolsplugin.py";
   auto snippet_py = home/"plugins"/"snippet.py";
 
   boost::filesystem::create_directories(config_dir); // io exp captured by calling method
@@ -57,7 +57,7 @@ void Config::find_or_create_config_files() {
   if (!boost::filesystem::exists(config_json))
     filesystem::write(config_json, configjson); // vars configjson and pluginspy
   if (!boost::filesystem::exists(plugins_py))   // live in files.h
-    filesystem::write(plugins_py, pluginspy);
+    filesystem::write(toolsplugin_py, toolspluginpy);
   if (!boost::filesystem::exists(snippet_py))   // live in files.h
     filesystem::write(snippet_py, snippetpy);
 

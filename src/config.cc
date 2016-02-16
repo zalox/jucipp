@@ -56,7 +56,7 @@ void Config::find_or_create_config_files() {
 
   if (!boost::filesystem::exists(config_json))
     filesystem::write(config_json, configjson); // vars configjson and pluginspy
-  if (!boost::filesystem::exists(plugins_py))   // live in files.h
+  if (!boost::filesystem::exists(toolsplugin_py))   // live in files.h
     filesystem::write(toolsplugin_py, toolspluginpy);
   if (!boost::filesystem::exists(snippet_py))   // live in files.h
     filesystem::write(snippet_py, snippetpy);

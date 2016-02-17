@@ -464,7 +464,7 @@ const std::string toolspluginpy =
 "  libjuci.directories.open(folder) \n"
 " \n"
 "def open_documentation() :\n"
-"  libjuci.terminal.println(\"Action disabled\n\") \n"
+"  libjuci.terminal.println(\"Action disabled\\n\") \n"
 " \n"
 "init() \n";
 

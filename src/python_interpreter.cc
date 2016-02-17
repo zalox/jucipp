@@ -33,7 +33,7 @@ PythonInterpreter::PythonInterpreter() {
 #endif
   auto plugin_path = Config::get().juci_home_path() / "plugins";
   if(!boost::filesystem::exists(plugin_path))
-    Config::get();
+    Config::get().load();
   append_path(plugin_path);
   PyImport_AppendInittab("libjuci", init_juci_api);
   Py_Initialize();
@@ -77,6 +77,7 @@ bool PythonInterpreter::import(const std::string &module_name) {
       return true;
     }
     handle_syntax_error();
+    handle_py_exception();
     return false;
   } else {
     pybind11::handle reload_module(PyImport_ReloadModule(module->second.ptr()));
@@ -87,6 +88,7 @@ bool PythonInterpreter::import(const std::string &module_name) {
     } else {
       reload_module.dec_ref();
       handle_syntax_error();
+      handle_py_exception();
       return false;
     }
   }
@@ -108,6 +110,12 @@ void PythonInterpreter::handle_syntax_error() {
   }
 }
 
+void PythonInterpreter::handle_py_exception() {
+  if(PyErr_Occurred()) {
+    PyErr_Clear();
+  }
+}
+
 pybind11::handle PythonInterpreter::exec(const std::string &method_qualifier){
   auto pos = method_qualifier.rfind('.');
   if (pos == std::string::npos) {
@@ -125,6 +133,7 @@ pybind11::handle PythonInterpreter::exec(const std::string &method_qualifier){
       return func.call();
     } catch (std::exception &ex) {
       handle_syntax_error();
+      handle_py_exception();
     }
   }
   return nullptr;

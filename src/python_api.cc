@@ -23,50 +23,12 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
       std::stringstream ss;
       ss << json;
       try {
-        boost::property_tree::read_json(ss, ptree);  
+        boost::property_tree::read_json(ss, ptree);
+        Menu::get().plugin_entries.emplace_back(ptree);
       } catch (std::exception &ex) {
-        
+        std::cerr << "There was an error while parsing json:\n" << json;
+        std::cerr << std::endl << ex.what() << std::endl;
       }
-      boost::property_tree::ptree empty;
-      auto & sections = ptree.get_child("sections", empty);
-      if(sections.empty()) {
-        std::cerr << "Error parsing json from plugin menu definition, please verify" << std::endl;
-        return;
-      }
-      for(auto &elem : sections) { //TODO Do this recursive
-        if(elem.first == "item"){
-          auto label = elem.second.get<std::string>("label", "");
-          auto accel = elem.second.get<std::string>("keybinding", "");
-          auto action = elem.second.get<std::string>("action", "");
-          if(!action.empty() || !accel.empty())
-            Config::get().menu.keys[action] = accel;
-          Menu::get().add_action(action, [action]() {
-            auto res = PythonInterpreter::get().exec(action);
-            res.dec_ref();
-          });
-        }
-        if(elem.first == "submenu"){
-          auto & inner_sections = elem.second.get_child("sections", empty);
-          if(inner_sections.empty()) {
-            std::cerr << "Error parsing json from plugin menu definition, please verify" << std::endl;
-            return;
-          }
-          for(auto &item : inner_sections){
-            if(item.first == "item"){
-              auto label = item.second.get<std::string>("label", "");
-              auto accel = item.second.get<std::string>("keybinding", "");
-              auto action = item.second.get<std::string>("action", "");
-              if(!accel.empty() || !action.empty())
-                Config::get().menu.keys[action] = accel;
-                Menu::get().add_action(action, [action]() {
-                  auto res = PythonInterpreter::get().exec(action);
-                  res.dec_ref();
-                });
-            }
-          }
-        }
-      }
-      Menu::get().plugin_entries.emplace_back(ptree);
     },
     "(void) Builds a menu configured by 'json'",
     pybind11::arg("(str) json")

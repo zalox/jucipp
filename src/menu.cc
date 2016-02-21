@@ -4,8 +4,10 @@
 #include <string>
 #include <boost/property_tree/xml_parser.hpp>
 #include "terminal.h"
+#include "python_interpreter.h"
 
-boost::property_tree::ptree Menu::Generator::generate_submenu(const std::string &label){
+
+boost::property_tree::ptree Menu::generate_submenu(const std::string &label){
   boost::property_tree::ptree ptree;
   std::stringstream ss;
   std::string element(
@@ -16,7 +18,7 @@ boost::property_tree::ptree Menu::Generator::generate_submenu(const std::string 
   return ptree;
 }
 
-boost::property_tree::ptree Menu::Generator::generate_item(const std::string &label, const std::string &action, const std::string &accel){
+boost::property_tree::ptree Menu::generate_item(const std::string &label, const std::string &action, const std::string &accel){
   boost::property_tree::ptree ptree;
   std::stringstream ss;
   std::string item(
@@ -342,64 +344,21 @@ Glib::RefPtr<Gtk::Builder> Menu::build() {
       "    </submenu>"
       "  </menu>"
       "</interface>";
-    // add plugin menu items
     std::stringstream ss;
     ss << ui_xml;
     boost::property_tree::ptree ptree;
     boost::property_tree::read_xml(ss, ptree, boost::property_tree::xml_parser::trim_whitespace);
-    auto &iface = ptree.get_child("interface");
-    auto menu_range = iface.equal_range("menu");
+    auto &xml_interface = ptree.get_child("interface");
+    auto menu_range = xml_interface.equal_range("menu");
     boost::property_tree::ptree * menu = nullptr;
-    for(auto &it = menu_range.first; it!=menu_range.second; it++){
+    for(auto &it = menu_range.first; it!=menu_range.second; it++) {
       if((it->second.get_child("<xmlattr>.id")).get_value<std::string>() == "window-menu"){
         menu = &it->second;
       }
     }
-    Generator g;
-    auto submenus = menu->equal_range("submenu");
-    for (auto &json : plugin_entries) {
-      auto main_menu = json.get<std::string>("main_menu", "");
-      if(main_menu.empty()) {
-        Terminal::get().print("Couldn't parse json, main_menu element missing\n");
-        continue;
-      }
-      boost::property_tree::ptree *add_into = nullptr;
-      for(auto &it = submenus.first; it!=submenus.second; ++it){
-        auto label = (it->second.get_child("attribute")).get_value<std::string>();
-        if(main_menu == label)
-          add_into = &it->second;
-      }
-      if(add_into == nullptr)
-        add_into = &menu->add_child("submenu", g.generate_submenu(main_menu));
-      boost::property_tree::ptree empty;
-      auto &sections = json.get_child("sections", empty);
-      for(auto &elem : sections) {
-        if(elem.first == "item") {
-          auto label = elem.second.get<std::string>("label", "");
-          auto action = elem.second.get<std::string>("action", "");
-          if (!label.empty() && !action.empty()){
-            add_into->add_child("item", g.generate_item(label, action, accels[label]));
-          } else {
-            Terminal::get().print("Couldn't parse json, item has no action or label\n");
-          }
-        } else if(elem.first == "submenu") {
-          auto label = elem.second.get<std::string>("label", "");
-          if(label.empty())
-            continue;
-          auto &submenu = add_into->add_child("submenu", g.generate_submenu(label));
-          auto &inner_sections = elem.second.get_child("sections", empty);
-          for(auto &subelem : inner_sections){
-            if(subelem.first == "item") {
-              auto label = subelem.second.get<std::string>("label", "");
-              auto action = subelem.second.get<std::string>("action", "");
-              if (!label.empty() && !action.empty()){
-                submenu.add_child("item", g.generate_item(label, action, accels[label]));
-              } else {
-                Terminal::get().print("Couldn't parse json, submenu item has no action or label\n");
-              }
-            }
-          }
-        }
+    if(menu != nullptr) {
+      for (auto &plugin : plugin_entries) {
+        add_sections(*menu, plugin, accels);
       }
     }
     ss = std::stringstream();
@@ -407,9 +366,68 @@ Glib::RefPtr<Gtk::Builder> Menu::build() {
     ui_xml = ss.str();
     menu = nullptr;
     return Gtk::Builder::create_from_string(ui_xml);
-  }
-  catch (const Glib::Error &ex) {
-    std::cerr << "building menu failed: " << ex.what();
-    return Glib::RefPtr<Gtk::Builder>(nullptr);
+  }catch (const Glib::Error &ex) {
+      std::cerr << "building menu failed: " << ex.what();
+      return Glib::RefPtr<Gtk::Builder>(nullptr);
+    }
+}
+
+#include <iostream>
+using namespace std;
+
+void Menu::add_sections(boost::property_tree::ptree &xml_menus, boost::property_tree::ptree &menu_elements, const std::unordered_map<std::string, std::string> &accels){
+  boost::property_tree::ptree empty;
+  for(auto &element:menu_elements){
+    auto label=element.second.get<std::string>("label", "");
+    auto &sub_menu_elements=element.second.get_child("menu_elements", empty);
+    if(sub_menu_elements.empty()){ // item
+      auto action=element.second.get<std::string>("action", "");
+      auto keybinding=element.second.get<std::string>("keybinding", "");
+      if(!action.empty()&&!keybinding.empty()){
+        // Add actions without labels, for hidden shortcuts
+        Config::get().menu.keys[action] = keybinding;
+        add_action(action, [action](){
+          auto res = PythonInterpreter::get().exec(action);
+          res.dec_ref();
+        });
+      }
+      if(!label.empty() && !action.empty()){
+        auto accel = accels.find(label);
+        auto items=xml_menus.equal_range("item");
+        bool item_exists=false;
+        for(auto &it=items.first; it!=items.second; it++){
+          auto item_label=(it->second.get_child("attribute")).get_value<std::string>();
+          if(item_label==label){
+            item_exists=true;
+          }
+        }
+        if(!item_exists)
+          xml_menus.add_child("item",generate_item(label,action,accel!=accels.end()?accel->second:""));
+      }
+      if(label.empty() && action.empty()){
+        Terminal::get().print("Couldn't parse json, item has no action or label\n");
+        continue;
+      } 
+    }else{
+      for(auto &sub_menu_element:sub_menu_elements){
+        if(!label.empty()){
+          auto submenus=xml_menus.equal_range("submenu");
+          boost::property_tree::ptree *xml_submenu=nullptr;
+          for(auto &it=submenus.first;it!=submenus.second;it++){
+            auto submenu_label=(it->second.get_child("attribute")).get_value<std::string>();
+            if(label==submenu_label){
+              xml_submenu=&it->second;
+              break;
+            }
+          }
+          if(xml_submenu==nullptr)
+            xml_submenu=&xml_menus.add_child("submenu", generate_submenu(label));
+          add_sections(*xml_submenu, sub_menu_elements, accels);
+        }else{
+          Terminal::get().print("Couldn't parse json, item has no action or label\n");  
+          continue;
+        }
+      }
+    }
   }
 }

@@ -15,13 +15,10 @@ public:
     static Menu singleton;
     return singleton;
   }
-  
-  class Generator {
-    public:
-      boost::property_tree::ptree generate_submenu(const std::string &label);
-      boost::property_tree::ptree generate_item(const std::string &label, const std::string &action, const std::string &accel);
-  };
+  boost::property_tree::ptree generate_submenu(const std::string &label);
+  boost::property_tree::ptree generate_item(const std::string &label, const std::string &action, const std::string &accel);
   void add_action(const std::string &name, std::function<void()> action);
+  void add_sections(boost::property_tree::ptree &ptree, boost::property_tree::ptree &menu, const std::unordered_map<std::string, std::string> &accels);
   void set_keys();
   Glib::RefPtr<Gtk::Builder> build();
   std::vector<boost::property_tree::ptree> plugin_entries;

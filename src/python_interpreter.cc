@@ -105,13 +105,12 @@ void PythonInterpreter::handle_syntax_error() {
     str << "Error while reloading,\n"
     << error_msgs << " (" << line_number << ":" << offset << "):\n" << error;
     Terminal::get().print(str.str());
-  } else {
-    Terminal::get().print("Error while reloading... No information given\n");
   }
 }
 
 void PythonInterpreter::handle_py_exception() {
   if(PyErr_Occurred()) {
+    std::cerr << "An error occured during python execution, no information was gathered\n";
     PyErr_Clear();
   }
 }

@@ -383,14 +383,13 @@ void Menu::add_sections(boost::property_tree::ptree &xml_menus, boost::property_
       auto action=element.second.get<std::string>("action", "");
       auto keybinding=element.second.get<std::string>("keybinding", "");
       if(!action.empty()&&!keybinding.empty()){
-        // Add actions without labels, for hidden shortcuts
         Config::get().menu.keys[action] = keybinding;
+      }
+      if(!label.empty() && !action.empty()){
         add_action(action, [action](){
           auto res = PythonInterpreter::get().exec(action);
           res.dec_ref();
         });
-      }
-      if(!label.empty() && !action.empty()){
         auto accel = accels.find(label);
         auto items=xml_menus.equal_range("item");
         bool item_exists=false;

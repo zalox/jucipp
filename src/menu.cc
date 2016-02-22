@@ -6,7 +6,6 @@
 #include "terminal.h"
 #include "python_interpreter.h"
 
-
 boost::property_tree::ptree Menu::generate_submenu(const std::string &label){
   boost::property_tree::ptree ptree;
   std::stringstream ss;
@@ -55,28 +54,27 @@ void Menu::set_keys() {
   }
 }
 
-Glib::RefPtr<Gtk::Builder> Menu::build() {
-  try {
-    auto accels=Config::get().menu.keys;
-    for(auto &accel: accels) {
+void Menu::build(){
+  auto accels=Config::get().menu.keys;
+  for(auto &accel: accels) {
 #ifdef JUCI_UBUNTU_BUGGED_MENU
-      size_t pos=0;
-      std::string second=accel.second;
-      while((pos=second.find('<', pos))!=std::string::npos) {
-        second.replace(pos, 1, "&lt;");
-        pos+=4;
-      }
-      pos=0;
-      while((pos=second.find('>', pos))!=std::string::npos) {
-        second.replace(pos, 1, "&gt;");
-        pos+=4;
-      }
-      if(second.size()>0)
-        accel.second="<attribute name='accel'>"+second+"</attribute>";
-      else
-        accel.second="";
+    size_t pos=0;
+    std::string second=accel.second;
+    while((pos=second.find('<', pos))!=std::string::npos) {
+      second.replace(pos, 1, "&lt;");
+      pos+=4;
+    }
+    pos=0;
+    while((pos=second.find('>', pos))!=std::string::npos) {
+      second.replace(pos, 1, "&gt;");
+      pos+=4;
+    }
+    if(second.size()>0)
+      accel.second="<attribute name='accel'>"+second+"</attribute>";
+    else
+      accel.second="";
 #else
-     accel.second="";
+   accel.second="";
 #endif
     }
     std::string ui_xml =
@@ -347,13 +345,14 @@ Glib::RefPtr<Gtk::Builder> Menu::build() {
     std::stringstream ss;
     ss << ui_xml;
     boost::property_tree::ptree ptree;
+  try {
     boost::property_tree::read_xml(ss, ptree, boost::property_tree::xml_parser::trim_whitespace);
     auto &xml_interface = ptree.get_child("interface");
     auto menu_range = xml_interface.equal_range("menu");
     boost::property_tree::ptree * menu = nullptr;
     for(auto &it = menu_range.first; it!=menu_range.second; it++) {
       if((it->second.get_child("<xmlattr>.id")).get_value<std::string>() == "window-menu"){
-        menu = &it->second;
+       menu = &it->second;
       }
     }
     if(menu != nullptr) {
@@ -365,15 +364,15 @@ Glib::RefPtr<Gtk::Builder> Menu::build() {
     boost::property_tree::write_xml(ss, ptree, boost::property_tree::xml_parser::trim_whitespace);
     ui_xml = ss.str();
     menu = nullptr;
-    return Gtk::Builder::create_from_string(ui_xml);
-  }catch (const Glib::Error &ex) {
-      std::cerr << "building menu failed: " << ex.what();
-      return Glib::RefPtr<Gtk::Builder>(nullptr);
-    }
+    builder = Gtk::Builder::create_from_string(ui_xml);
+    auto object = builder->get_object("juci-menu");
+    juci_menu = Glib::RefPtr<Gio::Menu>::cast_dynamic(object);
+    object = builder->get_object("window-menu");
+    window_menu = Glib::RefPtr<Gio::Menu>::cast_dynamic(object);
+  } catch (const std::exception &ex) {
+    std::cerr << "building menu failed: " << ex.what();
+  }
 }
-
-#include <iostream>
-using namespace std;
 
 void Menu::add_sections(boost::property_tree::ptree &xml_menus, boost::property_tree::ptree &menu_elements, const std::unordered_map<std::string, std::string> &accels){
   boost::property_tree::ptree empty;

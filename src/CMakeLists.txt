@@ -10,19 +10,15 @@ if(APPLE)
   set(ENV{PKG_CONFIG_PATH} "$ENV{PKG_CONFIG_PATH}:/usr/local/lib/pkgconfig:/opt/X11/lib/pkgconfig")
 endif()
 
-if(UNIX) #Checking if compiling on Ubuntu that has a buggy menu system
+if(UNIX) #Checking if compiling on Ubuntu that for instance has a buggy menu system
   find_program(LSB_RELEASE_BIN lsb_release)
   if(LSB_RELEASE_BIN)
     execute_process(COMMAND ${LSB_RELEASE_BIN} -is
       OUTPUT_VARIABLE DISTRIBUTION OUTPUT_STRIP_TRAILING_WHITESPACE)
     if((DISTRIBUTION STREQUAL Ubuntu) OR (DISTRIBUTION STREQUAL LinuxMint))
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DJUCI_UBUNTU_BUGGED_MENU")
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DJUCI_UBUNTU")
     endif()
   endif()
-endif()
-
-if(MSYS)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DMSYS_PROCESS_USE_SH -DJUCI_CMAKE_INSTALL_PREFIX=\\\"${CMAKE_INSTALL_PREFIX}\\\"")
 endif()
 
 find_package(LibClang REQUIRED)
@@ -32,6 +28,7 @@ find_package(PythonLibs 3 REQUIRED)
 set(PYBIND11_INCLUDE_DIR ../pybind11/include)
 set(LIBCLANGMM_INCLUDE_DIR ../libclangmm/src)
 set(TINY_PROCESS_INCLUDE_DIR ../tiny-process-library)
+
 string(REPLACE libclang liblldb LIBLLDB_LIBRARIES "${LIBCLANG_LIBRARIES}")
 if(EXISTS "${LIBLLDB_LIBRARIES}")
   set(LIBLLDB_FOUND TRUE)
@@ -80,6 +77,8 @@ set(application_files
     dialogs.h
     directories.cc
     directories.h
+    dispatcher.cc
+    dispatcher.h
     entrybox.cc
     entrybox.h
     files.h
@@ -93,6 +92,8 @@ set(application_files
     menu.h
     notebook.cc
     notebook.h
+    project.cc
+    project.h
     python_api.cc
     python_api.h
     python_interpreter.cc
@@ -109,7 +110,7 @@ set(application_files
     tooltips.h
     window.cc
     window.h
-
+    
     ../libclangmm/src/CodeCompleteResults.cc
     ../libclangmm/src/CompilationDatabase.cc
     ../libclangmm/src/CompileCommand.cc     
@@ -129,7 +130,7 @@ set(application_files
     ../tiny-process-library/process.cpp)
 
 if(LIBLLDB_FOUND)
-  list(APPEND source_files debug.h debug.cc)
+  list(APPEND source_files debug_clang.h debug_clang.cc)
 endif()
 
 if(MSYS)

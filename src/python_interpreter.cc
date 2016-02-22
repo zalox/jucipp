@@ -94,9 +94,6 @@ bool PythonInterpreter::import(const std::string &module_name) {
   }
 }
 
-using namespace std;
-#include <iostream>
-
 void PythonInterpreter::handle_syntax_error() {
   std::string error_msgs, error;
   int line_number=0, offset=0;
@@ -157,7 +154,6 @@ pybind11::handle PythonInterpreter::exec(const std::string &method_qualifier,
   }
   return nullptr;
 }
-
 
 bool PythonInterpreter::parse_syntax_error(std::string &error_msg, std::string &error, int &line_number, int &offset) {
   pybind11::handle obj;

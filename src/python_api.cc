@@ -54,8 +54,7 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
   api.def_submodule("editor")
     .def("get_file",
       [] () {
-        auto& window = Window::get();
-        auto view = window.notebook.get_current_view();
+        auto view = Notebook::get().get_current_view();
         if (view != nullptr) {
           return view->file_path.c_str();
         }
@@ -64,8 +63,7 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
       "(str) Returns the current open file. If no file is open it returns empty a string")
     .def("get_text",
       [] () {
-        auto& window = Window::get();
-        auto view = window.notebook.get_current_view();
+        auto view = Notebook::get().get_current_view();
         if (view != nullptr) {
           return view->get_buffer()->get_text().c_str();
         }
@@ -74,8 +72,7 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
       "(str) returns the text in the open editor")
     .def("get_line",
     [] () {
-      auto& window = Window::get();
-      auto view = window.notebook.get_current_view();
+      auto view = Notebook::get().get_current_view();
       if (view != nullptr) {
         auto insert_iter = view->get_buffer()->get_insert()->get_iter();
         Gtk::TextIter start_iter = insert_iter, end_iter = insert_iter;
@@ -92,8 +89,7 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
     "(str) returns the line of text the caret is on")
     .def("get_line_number",
       [] () {
-        auto& window = Window::get();
-        auto view = window.notebook.get_current_view();
+        auto view = Notebook::get().get_current_view();
         if (view != nullptr) {
           return view->get_source_buffer()->get_insert()->get_iter().get_line();
         }
@@ -102,8 +98,7 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
       "(int) Returns the line which is being edited, -1 if no file is open or no line is selected")
     .def("get_line_offset",
       [] () {
-        auto& window = Window::get();
-        auto view = window.notebook.get_current_view();
+        auto view = Notebook::get().get_current_view();
         if (view != nullptr) {
           return view->get_source_buffer()->get_insert()->get_iter().get_line_offset();
         }
@@ -113,8 +108,7 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
       " newline, 0 is the first character -1 if no file is open or no line is selected")
     .def("get_offset",
       [] () {
-        auto& window = Window::get();
-        auto view = window.notebook.get_current_view();
+        auto view = Notebook::get().get_current_view();
         if (view != nullptr) {
           return view->get_source_buffer()->get_insert()->get_iter().get_offset();
         }
@@ -124,8 +118,7 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
       " file. 0 is the first character. Returns -1 if no lines or files are selected/open")
     .def("get_text_range",
       [] (int begin_offset, int end_offset) {
-        auto& window = Window::get();
-        auto view = window.notebook.get_current_view();
+        auto view = Notebook::get().get_current_view();
         if (view != nullptr) {
           auto begin_iter = view->get_buffer()->get_iter_at_offset(begin_offset);
           auto end_iter = view->get_buffer()->get_iter_at_offset(end_offset);
@@ -137,8 +130,7 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
       "string if editor isn't focused on a file")
     .def("scroll_to",
       [] (int char_offset) {
-        auto& window = Window::get();
-        auto view = window.notebook.get_current_view();
+        auto view = Notebook::get().get_current_view();
         if (view != nullptr) {
           auto scroll_iter = view->get_buffer()->get_iter_at_offset(char_offset);
           view->scroll_to(scroll_iter);
@@ -147,8 +139,7 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
       "(void) Scrolls cursor to 'char_offset'")
     .def("insert_at",
       [](int char_offset, const char* text){
-        auto& window = Window::get();
-        auto view = window.notebook.get_current_view();
+        auto view = Notebook::get().get_current_view();
         if (view != nullptr) {
           auto insert = view->get_buffer()->get_iter_at_offset(char_offset);
           view->get_buffer()->insert(insert, text);
@@ -157,8 +148,7 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
       "(void) Inserts text at the given offset, caller is responsible to scroll to the insertion")
     .def("erase_line_range",
     [](int line_number, int begin_line_offset, int end_line_offset){
-      auto& window = Window::get();
-      auto view = window.notebook.get_current_view();
+      auto view = Notebook::get().get_current_view();
       if (view != nullptr) {
         auto begin_iter = view->get_buffer()->get_iter_at_line_offset(line_number, begin_line_offset);
         auto end_iter = view->get_buffer()->get_iter_at_line_offset(line_number, end_line_offset);
@@ -168,8 +158,7 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
     "(void) Removes text on line 'line_number' between 'begin_line_offset' and 'end_line_offset'")
     .def("erase",
     [](int begin_offset, int end_offset){
-      auto& window = Window::get();
-      auto view = window.notebook.get_current_view();
+      auto view = Notebook::get().get_current_view();
       if (view != nullptr) {
         auto begin_iter = view->get_buffer()->get_iter_at_offset(begin_offset);
         auto end_iter = view->get_buffer()->get_iter_at_offset(end_offset);
@@ -179,8 +168,7 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
     "(void) Removes text between the given offsets")
     .def("insert_at_cursor",
     [](const char* text){
-      auto& window = Window::get();
-      auto view = window.notebook.get_current_view();
+      auto view = Notebook::get().get_current_view();
       if (view != nullptr) {
         view->get_buffer()->insert_at_cursor(text);
       }
@@ -188,8 +176,7 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
     "(void) Inserts text at the cursor")
     .def("get_tab_char_and_size",
       [](){
-        auto& window = Window::get();
-        auto view = window.notebook.get_current_view();
+        auto view = Notebook::get().get_current_view();
         if (view != nullptr) {
           std::stringstream ss;
           boost::property_tree::ptree ptree;
@@ -209,8 +196,7 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
       "(bool) Returns true if the current open file is saved")
     .def("get_highlighted_word",
       [] () {
-        auto& window = Window::get();
-        auto view = window.notebook.get_current_view();
+        auto view = Notebook::get().get_current_view();
         if (view != nullptr) {
           if (view->get_token) {
             auto token = view->get_token();

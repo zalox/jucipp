@@ -1,5 +1,6 @@
 #include "juci.h"
 #include "window.h"
+#include "notebook.h"
 #include "directories.h"
 #include "menu.h"
 #include "config.h"
@@ -69,7 +70,7 @@ void Application::on_activate() {
   }
   
   for(auto &file: files)
-    Window::get().notebook.open(file);
+    Notebook::get().open(file);
   
   for(auto &error: errors)
     Terminal::get().print(error, true);
@@ -78,17 +79,13 @@ void Application::on_activate() {
 void Application::on_startup() {
   Gtk::Application::on_startup();
   PythonInterpreter::get();
-  auto builder = Menu::get().build();
-  auto object = builder->get_object("juci-menu");
-  auto juci_menu = Glib::RefPtr<Gio::Menu>::cast_dynamic(object);
-  object = builder->get_object("window-menu");
-  auto window_menu = Glib::RefPtr<Gio::Menu>::cast_dynamic(object);
-  if (!juci_menu || !window_menu) {
+  Menu::get().build();
+  if (!Menu::get().juci_menu || !Menu::get().window_menu) {
     std::cerr << "Menu not found." << std::endl;
   }
   else {
-    set_app_menu(juci_menu);
-    set_menubar(window_menu);
+    set_app_menu(Menu::get().juci_menu);
+    set_menubar(Menu::get().window_menu);
   }
 }
 
@@ -101,11 +98,3 @@ Application::Application() : Gtk::Application("no.sout.juci", Gio::APPLICATION_N
   //Gtk::MessageDialog without buttons caused text to be selected, this prevents that
   Gtk::Settings::get_default()->property_gtk_label_select_on_focus()=false;
 }
-
-int Application::run(int argc, char **argv){
-  for(int i = 0; i < argc; i++){
-    args.emplace_back(argv[i]);
-  }
-  return Gtk::Application::run(argc, argv);
-}
-

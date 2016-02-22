@@ -20,9 +20,15 @@ public:
   void add_action(const std::string &name, std::function<void()> action);
   void add_sections(boost::property_tree::ptree &ptree, boost::property_tree::ptree &menu, const std::unordered_map<std::string, std::string> &accels);
   void set_keys();
-  Glib::RefPtr<Gtk::Builder> build();
   std::vector<boost::property_tree::ptree> plugin_entries;
   std::unordered_map<std::string, Glib::RefPtr<Gio::SimpleAction> > actions;
+  void build();
+  Glib::RefPtr<Gio::Menu> juci_menu;
+  Glib::RefPtr<Gio::Menu> window_menu;
+  
+private:
+  Glib::RefPtr<Gtk::Builder> builder;
+  std::string ui_xml;
 };
 
 #endif  // JUCI_MENU_H_

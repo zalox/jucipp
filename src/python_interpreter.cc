@@ -37,6 +37,9 @@ PythonInterpreter::PythonInterpreter() {
   append_path(plugin_path);
   PyImport_AppendInittab("libjuci", init_juci_api);
   Py_Initialize();
+  unsigned long size = 0L;
+  argv = Py_DecodeLocale("", &size);
+  PySys_SetArgv(0, &argv);
   boost::filesystem::directory_iterator end_it;
   for(boost::filesystem::directory_iterator it(plugin_path);it!=end_it;it++) {
     auto module_name = it->path().stem().string();

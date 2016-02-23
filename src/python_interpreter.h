@@ -22,6 +22,7 @@ public:
   std::unordered_map<std::string, pybind11::handle> modules;
   private:
   PythonInterpreter();
+  wchar_t *argv;
 };
 
 

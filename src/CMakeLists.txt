@@ -21,6 +21,10 @@ if(UNIX) #Checking if compiling on Ubuntu that for instance has a buggy menu sys
   endif()
 endif()
 
+if(MSYS)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DMSYS_PROCESS_USE_SH")
+endif()
+
 find_package(LibClang REQUIRED)
 find_package(Boost 1.54 COMPONENTS thread log regex system filesystem REQUIRED)
 find_package(ASPELL REQUIRED)

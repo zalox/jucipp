@@ -51,9 +51,8 @@ PythonInterpreter::~PythonInterpreter() {
   for (auto &module : modules) {
     module.second.dec_ref();
   }
-  if (PyErr_Occurred() != nullptr)
-    PyErr_Print();
-  if (Py_IsInitialized())
+  handle_py_exception();
+  if(Py_IsInitialized())
     Py_Finalize();
 }
 
@@ -79,9 +78,6 @@ bool PythonInterpreter::import(const std::string &module_name) {
       modules[module_name] = new_module;
       return true;
     }
-    handle_syntax_error();
-    handle_py_exception();
-    return false;
   } else {
     pybind11::handle reload_module(PyImport_ReloadModule(module->second.ptr()));
     if(reload_module){
@@ -90,29 +86,10 @@ bool PythonInterpreter::import(const std::string &module_name) {
       return true;
     } else {
       reload_module.dec_ref();
-      handle_syntax_error();
-      handle_py_exception();
-      return false;
     }
   }
-}
-
-void PythonInterpreter::handle_syntax_error() {
-  std::string error_msgs, error;
-  int line_number=0, offset=0;
-  if (parse_syntax_error(error_msgs, error, line_number, offset)) {
-    std::stringstream str;
-    str << "Error while reloading,\n"
-    << error_msgs << " (" << line_number << ":" << offset << "):\n" << error;
-    Terminal::get().print(str.str());
-  }
-}
-
-void PythonInterpreter::handle_py_exception() {
-  if(PyErr_Occurred()) {
-    std::cerr << "An error occured during python execution, no information was gathered\n";
-    PyErr_Clear();
-  }
+  handle_py_exception();
+  return false;
 }
 
 pybind11::handle PythonInterpreter::exec(const std::string &method_qualifier){
@@ -128,13 +105,13 @@ pybind11::handle PythonInterpreter::exec(const std::string &method_qualifier){
   }
   pybind11::handle func = module->second.attr(method.c_str());
   if (func && PyCallable_Check(func.ptr())) {
-    try {
+    try{
       return func.call();
-    } catch (std::exception &ex) {
-      handle_syntax_error();
-      handle_py_exception();
+    }catch(const std::exception &ex){
+
     }
   }
+  handle_py_exception();
   return nullptr;
 }
 
@@ -158,39 +135,53 @@ pybind11::handle PythonInterpreter::exec(const std::string &method_qualifier,
   return nullptr;
 }
 
-bool PythonInterpreter::parse_syntax_error(std::string &error_msg, std::string &error, int &line_number, int &offset) {
-  pybind11::handle obj;
-  if ((obj = PyErr_Occurred()) && PyErr_GivenExceptionMatches(obj.ptr(), PyExc_SyntaxError)) {
-    _Py_IDENTIFIER(msg); // declares PyID_msg
-    _Py_IDENTIFIER(lineno);
-    _Py_IDENTIFIER(offset);
-    _Py_IDENTIFIER(text);
-    /**
-     * text should contain the error
-     */
+void PythonInterpreter::handle_py_exception(){
+  pybind11::handle error(PyErr_Occurred());
+  if(error){
     PyObject *exception, *value, *traceback;
     PyErr_Fetch(&exception, &value, &traceback);
     PyErr_NormalizeException(&exception, &value, &traceback);
     pybind11::object py_exception(exception, false);
     pybind11::object py_value(value, false);
     pybind11::object py_traceback(traceback, false);
-    PyErr_Restore(exception, value, traceback); // "catches" the exception
-    pybind11::str py_error_msg(_PyObject_GetAttrId(py_value.ptr(), &PyId_msg), false);
-    pybind11::str py_error_text(_PyObject_GetAttrId(py_value.ptr(), &PyId_text), false);
-    pybind11::object py_line_number(_PyObject_GetAttrId(py_value.ptr(), &PyId_lineno), false);
-    pybind11::object py_line_offset(_PyObject_GetAttrId(py_value.ptr(), &PyId_offset), false);
-    if (py_line_number.ptr() != Py_None &&
-        py_line_offset.ptr() != Py_None &&
-        py_error_msg.ptr() != Py_None &&
-        py_error_text.ptr() != Py_None)
-    {
-      line_number = PyLong_AsLong(py_line_number.ptr()); // TODO these pymethod can produce pyerrors
-      offset = PyLong_AsLong(py_line_offset.ptr());
-      error_msg = std::string(py_error_msg);
-      error = std::string(py_error_text);
-      PyErr_Clear();
-      return true;
+    std::stringstream str;
+    if(PyErr_GivenExceptionMatches(py_exception.ptr(),PyExc_SyntaxError)){
+      std::string error_msgs, error;
+      int line_number=0, offset=0;
+      if(parse_syntax_error(py_value,error_msgs,error,line_number,offset))
+        str << error_msgs << " (" << line_number << ":" << offset << "):\n" << error;
+      else
+        str << "An error occured while trying to parse SyntaxError\n";
     }
+    else if(PyErr_GivenExceptionMatches(py_exception.ptr(),PyExc_AttributeError))
+      str << "AttributeError: " << py_value.str().operator const char *() << "\n";
+    else if(PyErr_GivenExceptionMatches(py_exception.ptr(),PyExc_ImportError))
+      str << "ImportError: " << py_value.str().operator const char *() << "\n";
+    else
+      str << py_exception.str().operator const char *() << "\n" << py_value.str().operator const char *() << "\n";
+    Terminal::get().print(str.str());
   }
+}
+
+bool PythonInterpreter::parse_syntax_error(pybind11::object &py_value, std::string &error_msg, std::string &error, int &line_number, int &offset) {
+  _Py_IDENTIFIER(msg); // declares PyID_msg
+  _Py_IDENTIFIER(lineno);
+  _Py_IDENTIFIER(offset);
+  _Py_IDENTIFIER(text);
+  pybind11::str py_error_msg(_PyObject_GetAttrId(py_value.ptr(), &PyId_msg), false);
+  pybind11::str py_error_text(_PyObject_GetAttrId(py_value.ptr(), &PyId_text), false);
+  pybind11::object py_line_number(_PyObject_GetAttrId(py_value.ptr(), &PyId_lineno), false);
+  pybind11::object py_line_offset(_PyObject_GetAttrId(py_value.ptr(), &PyId_offset), false);
+  if(py_line_number.ptr()!=Py_None && py_line_offset.ptr()!=Py_None && py_error_msg.ptr()!=Py_None && py_error_text.ptr()!=Py_None){
+    line_number = PyLong_AsLong(py_line_number.ptr()); // TODO these pymethod can produce pyerrors
+    offset = PyLong_AsLong(py_line_offset.ptr());
+    error_msg = std::string(py_error_msg);
+    error = std::string(py_error_text);
+    return true;
+  }
+  error_msg="";
+  error="";
+  line_number=0;
+  offset=0;
   return false;
 }

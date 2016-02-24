@@ -250,7 +250,7 @@ void Window::set_menu_actions() {
           auto parent = file_path;
           while(parent.has_parent_path()) {
             if(parent == Config::get().juci_home_path()/"plugins") {
-              auto stem = notebook.get_current_view()->file_path.stem().string();
+              auto stem = notebook.get_current_view()->file_path.stem().generic_string();
               if(PythonInterpreter::get().import(stem)){
                 Terminal::get().print("Python module "+stem + " has been reloaded \n");
               }

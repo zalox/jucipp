@@ -53,16 +53,16 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
   
   api.def_submodule("editor")
     .def("get_file",
-      [] () {
+      [] () -> const char * {
         auto view = Notebook::get().get_current_view();
         if (view != nullptr) {
-          return view->file_path.c_str();
+          return view->file_path.string().c_str();
         }
         return "";
       },
       "(str) Returns the current open file. If no file is open it returns empty a string")
     .def("get_text",
-      [] () {
+      [] () -> const char * {
         auto view = Notebook::get().get_current_view();
         if (view != nullptr) {
           return view->get_buffer()->get_text().c_str();

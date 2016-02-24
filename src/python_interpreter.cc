@@ -4,89 +4,84 @@
 #include "terminal.h"
 #include "juci.h"
 
-PythonInterpreter& PythonInterpreter::get() {
+PythonInterpreter& PythonInterpreter::get(){
   static PythonInterpreter s;
   return s;
 }
 
-PythonInterpreter::PythonInterpreter() {
+PythonInterpreter::PythonInterpreter(){
 #ifdef _WIN32
-  auto root_path = Config::get()->juci_home_path();
-  for(size_t i = 0; i < 3; i++) {
+  auto root_path=Config::get()->juci_home_path();
+  for(size_t i=0;i<3;i++) {
     root_path = root_path.parent_path();
   }
   auto p = root_path/"mingw64/lib/python3.5";
   Py_SetPath(p.generic_wstring().c_str());
   append_path(root_path/"mingw64/include/python3.5m");
   Py_Initialize();
-  if(PyErr_Occurred() != nullptr) {
-    auto pp = root_path/"mingw32/lib/python3.5";
+  if(PyErr_Occurred() != nullptr){
+    auto pp=root_path/"mingw32/lib/python3.5";
     Py_SetPath(pp.generic_wstring().c_str());
     append_path(root_path/"mingw32/include/python3.5m");
     Py_Initialize();
-    if(PyErr_Occurred() == nullptr) {
-      throw std::runtime_error("Couldn't find python libraries");
-    }
   }
   PyErr_Clear();
   Py_Finalize();
 #endif
-  auto plugin_path = Config::get().juci_home_path() / "plugins";
+  auto plugin_path=Config::get().juci_home_path()/"plugins";
   if(!boost::filesystem::exists(plugin_path))
     Config::get().load();
   append_path(plugin_path);
-  PyImport_AppendInittab("libjuci", init_juci_api);
+  append_path("/usr/lib/python3.5/site-packages");
+  PyImport_AppendInittab("libjuci",init_juci_api);
   Py_Initialize();
   unsigned long size = 0L;
-  argv = Py_DecodeLocale("", &size);
-  PySys_SetArgv(0, &argv);
+  argv=Py_DecodeLocale("",&size);
+  PySys_SetArgv(0,&argv);
   boost::filesystem::directory_iterator end_it;
-  for(boost::filesystem::directory_iterator it(plugin_path);it!=end_it;it++) {
+  for(boost::filesystem::directory_iterator it(plugin_path);it!=end_it;it++){
     auto module_name = it->path().stem().string();
     import(module_name);
   }
 }
 
-PythonInterpreter::~PythonInterpreter() {
-  for (auto &module : modules) {
+PythonInterpreter::~PythonInterpreter(){
+  for(auto &module:modules)
     module.second.dec_ref();
-  }
   handle_py_exception();
   if(Py_IsInitialized())
     Py_Finalize();
 }
 
-void PythonInterpreter::append_path(const boost::filesystem::path &path) {
+void PythonInterpreter::append_path(const boost::filesystem::path &path){
   std::wstring res(Py_GetPath());
-  if(!res.empty()) {
+  if(!res.empty())
 #ifdef _WIN32
-  res += ';';
+    res += ';';
 #else
-  res += ':';
+    res += ':';
 #endif
-  }
   res += path.generic_wstring();
   Py_SetPath(res.c_str());
 }
 
-bool PythonInterpreter::import(const std::string &module_name) {
+bool PythonInterpreter::import(const std::string &module_name){
   pybind11::str str(module_name.c_str());
   auto module = modules.find(module_name);
-  if(module == modules.end()) {
+  if(module == modules.end()){
     pybind11::handle new_module(PyImport_ImportModule(module_name.c_str()));
-    if (new_module) {
+    if(new_module){
       modules[module_name] = new_module;
       return true;
     }
-  } else {
+  }else{
     pybind11::handle reload_module(PyImport_ReloadModule(module->second.ptr()));
     if(reload_module){
       module->second.dec_ref();
       modules[module_name] = reload_module;
       return true;
-    } else {
+    }else
       reload_module.dec_ref();
-    }
   }
   handle_py_exception();
   return false;
@@ -94,60 +89,55 @@ bool PythonInterpreter::import(const std::string &module_name) {
 
 pybind11::handle PythonInterpreter::exec(const std::string &method_qualifier){
   auto pos = method_qualifier.rfind('.');
-  if (pos == std::string::npos) {
+  if (pos == std::string::npos)
     return nullptr;
-  }
-  auto module_name = method_qualifier.substr(0, pos);
-  auto method = method_qualifier.substr(module_name.length() + 1, method_qualifier.size());
-  auto module = modules.find(module_name);
-  if (module == modules.end()) {
+  auto module_name=method_qualifier.substr(0,pos);
+  auto method=method_qualifier.substr(module_name.length()+1,method_qualifier.size());
+  auto module=modules.find(module_name);
+  if (module == modules.end())
     return nullptr;
-  }
-  pybind11::handle func = module->second.attr(method.c_str());
-  if (func && PyCallable_Check(func.ptr())) {
+  pybind11::handle func(module->second.attr(method.c_str()));
+  if(func && PyCallable_Check(func.ptr()))
     try{
       return func.call();
     }catch(const std::exception &ex){
 
     }
-  }
   handle_py_exception();
   return nullptr;
 }
 
 template <class... Args>
 pybind11::handle PythonInterpreter::exec(const std::string &method_qualifier,
-                                         Args &&... args) {
-  auto pos = method_qualifier.rfind('.');
-  if (pos == std::string::npos) {
+                                         Args &&... args){
+  auto pos=method_qualifier.rfind('.');
+  if(pos == std::string::npos)
     return nullptr;
-  }
-  auto module_name = method_qualifier.substr(0, pos);
-  auto method = method_qualifier.substr(module_name.length() + 1, method_qualifier.size());
-  auto module = modules.find(module_name);
-  if (module == modules.end()) {
+  auto module_name=method_qualifier.substr(0,pos);
+  auto method=method_qualifier.substr(module_name.length()+1,method_qualifier.size());
+  auto module=modules.find(module_name);
+  if(module == modules.end())
     return nullptr;
-  }
-  auto func = pybind11::handle(module->second.attr(method.c_str()));
-  if (func && PyCallable_Check(func.ptr())) {
+
+  auto func=pybind11::handle(module->second.attr(method.c_str()));
+  if(func && PyCallable_Check(func.ptr()))
     return func.call(std::forward<Args>(args)...);
-  }
   return nullptr;
 }
 
 void PythonInterpreter::handle_py_exception(){
   pybind11::handle error(PyErr_Occurred());
   if(error){
-    PyObject *exception, *value, *traceback;
-    PyErr_Fetch(&exception, &value, &traceback);
-    PyErr_NormalizeException(&exception, &value, &traceback);
-    pybind11::object py_exception(exception, false);
-    pybind11::object py_value(value, false);
-    pybind11::object py_traceback(traceback, false);
+    PyObject *exception,*value,*traceback;
+    PyErr_Fetch(&exception,&value,&traceback);
+    PyErr_NormalizeException(&exception,&value,&traceback);
+    pybind11::object py_exception(exception,false);
+    pybind11::object py_value(value,false);
+    pybind11::object py_traceback(traceback,false);
     std::stringstream str;
     if(PyErr_GivenExceptionMatches(py_exception.ptr(),PyExc_SyntaxError)){
-      std::string error_msgs, error;
-      int line_number=0, offset=0;
+      std::string error_msgs,error;
+      int line_number=0,offset=0;
       if(parse_syntax_error(py_value,error_msgs,error,line_number,offset))
         str << error_msgs << " (" << line_number << ":" << offset << "):\n" << error;
       else
@@ -158,25 +148,25 @@ void PythonInterpreter::handle_py_exception(){
     else if(PyErr_GivenExceptionMatches(py_exception.ptr(),PyExc_ImportError))
       str << "ImportError: " << py_value.str().operator const char *() << "\n";
     else
-      str << py_exception.str().operator const char *() << "\n" << py_value.str().operator const char *() << "\n";
+      str << py_exception.str().operator const char*() << "\n" << py_value.str().operator const char*() << "\n";
     Terminal::get().print(str.str());
   }
 }
 
-bool PythonInterpreter::parse_syntax_error(pybind11::object &py_value, std::string &error_msg, std::string &error, int &line_number, int &offset) {
+bool PythonInterpreter::parse_syntax_error(pybind11::object &py_value,std::string &error_msg,std::string &error,int &line_number,int &offset){
   _Py_IDENTIFIER(msg); // declares PyID_msg
   _Py_IDENTIFIER(lineno);
   _Py_IDENTIFIER(offset);
   _Py_IDENTIFIER(text);
-  pybind11::str py_error_msg(_PyObject_GetAttrId(py_value.ptr(), &PyId_msg), false);
-  pybind11::str py_error_text(_PyObject_GetAttrId(py_value.ptr(), &PyId_text), false);
-  pybind11::object py_line_number(_PyObject_GetAttrId(py_value.ptr(), &PyId_lineno), false);
-  pybind11::object py_line_offset(_PyObject_GetAttrId(py_value.ptr(), &PyId_offset), false);
+  pybind11::str py_error_msg(_PyObject_GetAttrId(py_value.ptr(),&PyId_msg),false);
+  pybind11::str py_error_text(_PyObject_GetAttrId(py_value.ptr(),&PyId_text),false);
+  pybind11::object py_line_number(_PyObject_GetAttrId(py_value.ptr(),&PyId_lineno),false);
+  pybind11::object py_line_offset(_PyObject_GetAttrId(py_value.ptr(),&PyId_offset),false);
   if(py_line_number.ptr()!=Py_None && py_line_offset.ptr()!=Py_None && py_error_msg.ptr()!=Py_None && py_error_text.ptr()!=Py_None){
-    line_number = PyLong_AsLong(py_line_number.ptr()); // TODO these pymethod can produce pyerrors
-    offset = PyLong_AsLong(py_line_offset.ptr());
-    error_msg = std::string(py_error_msg);
-    error = std::string(py_error_text);
+    line_number=PyLong_AsLong(py_line_number.ptr()); // TODO these pymethod can produce pyerrors
+    offset=PyLong_AsLong(py_line_offset.ptr());
+    error_msg=std::string(py_error_msg);
+    error=std::string(py_error_text);
     return true;
   }
   error_msg="";

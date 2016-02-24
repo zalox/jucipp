@@ -11,36 +11,24 @@ PythonInterpreter& PythonInterpreter::get(){
 
 PythonInterpreter::PythonInterpreter(){
 #ifdef _WIN32
-  auto root_path=Config::get()->juci_home_path();
-  for(size_t i=0;i<3;i++) {
-    root_path = root_path.parent_path();
-  }
-  auto p = root_path/"mingw64/lib/python3.5";
-  Py_SetPath(p.generic_wstring().c_str());
-  append_path(root_path/"mingw64/include/python3.5m");
-  Py_Initialize();
-  if(PyErr_Occurred() != nullptr){
-    auto pp=root_path/"mingw32/lib/python3.5";
-    Py_SetPath(pp.generic_wstring().c_str());
-    append_path(root_path/"mingw32/include/python3.5m");
-    Py_Initialize();
-  }
-  PyErr_Clear();
-  Py_Finalize();
+  auto root_path=Config::get().terminal.msys2_mingw_path;
+  append_path(root_path/"include/python3.5m");
+  append_path(root_path/"lib/python3.5");
+  long long unsigned size = 0L;
+#else
+  long unsigned size = 0L;
 #endif
   auto plugin_path=Config::get().juci_home_path()/"plugins";
   if(!boost::filesystem::exists(plugin_path))
     Config::get().load();
   append_path(plugin_path);
-  append_path("/usr/lib/python3.5/site-packages");
   PyImport_AppendInittab("libjuci",init_juci_api);
   Py_Initialize();
-  unsigned long size = 0L;
   argv=Py_DecodeLocale("",&size);
   PySys_SetArgv(0,&argv);
   boost::filesystem::directory_iterator end_it;
   for(boost::filesystem::directory_iterator it(plugin_path);it!=end_it;it++){
-    auto module_name = it->path().stem().string();
+    auto module_name = it->path().stem().generic_string();
     import(module_name);
   }
 }

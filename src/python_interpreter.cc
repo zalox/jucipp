@@ -137,7 +137,10 @@ void PythonInterpreter::handle_py_exception(){
       str << "ImportError: " << py_value.str().operator const char *() << "\n";
     else
       str << py_exception.str().operator const char*() << "\n" << py_value.str().operator const char*() << "\n";
-    Terminal::get().print(str.str());
+    if(Terminal::get().is_visible())
+      Terminal::get().print(str.str());
+    else
+      std::cerr << str.rdbuf();
   }
 }
 

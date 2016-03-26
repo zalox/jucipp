@@ -7,6 +7,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <boost/regex.hpp>
 
 #include "selectiondialog.h"
 #include "tooltips.h"
@@ -57,7 +58,7 @@ namespace Source {
 
   class View : public Gsv::View {
   public:
-    View(const boost::filesystem::path &file_path, const boost::filesystem::path &project_path, Glib::RefPtr<Gsv::Language> language);
+    View(const boost::filesystem::path &file_path, Glib::RefPtr<Gsv::Language> language);
     ~View();
     
     virtual void configure();
@@ -73,7 +74,6 @@ namespace Source {
     void paste();
         
     boost::filesystem::path file_path;
-    boost::filesystem::path project_path;
     Glib::RefPtr<Gsv::Language> language;
     
     std::function<void()> auto_indent;
@@ -91,6 +91,7 @@ namespace Source {
     Gtk::TextIter get_iter_for_dialog();
     sigc::connection delayed_tooltips_connection;
     
+    std::function<void(View* view, bool center, bool show_tooltips)> scroll_to_cursor_delayed=[](View* view, bool center, bool show_tooltips) {};
     std::function<void(View* view, const std::string &status_text)> on_update_status;
     std::function<void(View* view, const std::string &info_text)> on_update_info;
     void set_status(const std::string &status);
@@ -115,8 +116,8 @@ namespace Source {
     Tooltips type_tooltips;
     virtual void show_diagnostic_tooltips(const Gdk::Rectangle &rectangle) {}
     virtual void show_type_tooltips(const Gdk::Rectangle &rectangle) {}
-    gdouble on_motion_last_x;
-    gdouble on_motion_last_y;
+    gdouble on_motion_last_x=0.0;
+    gdouble on_motion_last_y=0.0;
     void set_tooltip_and_dialog_events();
         
     std::string get_line(const Gtk::TextIter &iter);
@@ -136,7 +137,14 @@ namespace Source {
     bool find_right_bracket_forward(Gtk::TextIter iter, Gtk::TextIter &found_iter);
     bool find_left_bracket_backward(Gtk::TextIter iter, Gtk::TextIter &found_iter);
     
+    boost::regex bracket_regex;
+    boost::regex no_bracket_statement_regex;
+    boost::regex no_bracket_no_para_statement_regex;
+    
     bool on_key_press_event(GdkEventKey* key) override;
+    bool on_key_press_event_basic(GdkEventKey* key);
+    bool on_key_press_event_bracket_language(GdkEventKey* key);
+    bool is_bracket_language=false;
     bool on_button_press_event(GdkEventButton *event) override;
     
     std::pair<char, unsigned> find_tab_char_and_size();
@@ -146,8 +154,8 @@ namespace Source {
     
     bool spellcheck_all=false;
     std::unique_ptr<SelectionDialog> spellcheck_suggestions_dialog;
-    bool last_keyval_is_backspace=false;
-    bool last_keyval_is_return=false;
+    guint previous_non_modifier_keyval=0;
+    guint last_keyval=0;
   private:
     GtkSourceSearchContext *search_context;
     GtkSourceSearchSettings *search_settings;
@@ -173,7 +181,7 @@ namespace Source {
       static Glib::RefPtr<CompletionBuffer> create() {return Glib::RefPtr<CompletionBuffer>(new CompletionBuffer());}
     };
   public:
-    GenericView(const boost::filesystem::path &file_path, const boost::filesystem::path &project_path, Glib::RefPtr<Gsv::Language> language);
+    GenericView(const boost::filesystem::path &file_path, Glib::RefPtr<Gsv::Language> language);
     
     void parse_language_file(Glib::RefPtr<CompletionBuffer> &completion_buffer, bool &has_context_class, const boost::property_tree::ptree &pt);
   };

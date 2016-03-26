@@ -98,6 +98,8 @@ set(application_files
     notebook.h
     project.cc
     project.h
+    project_build.h
+    project_build.cc
     python_api.cc
     python_api.h
     python_interpreter.cc

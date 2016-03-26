@@ -53,64 +53,25 @@ void PythonInterpreter::append_path(const boost::filesystem::path &path){
   Py_SetPath(res.c_str());
 }
 
-bool PythonInterpreter::import(const std::string &module_name){
-  pybind11::str str(module_name.c_str());
-  auto module = modules.find(module_name);
-  if(module == modules.end()){
-    pybind11::handle new_module(PyImport_ImportModule(module_name.c_str()));
-    if(new_module){
-      modules[module_name] = new_module;
-      return true;
-    }
-  }else{
-    pybind11::handle reload_module(PyImport_ReloadModule(module->second.ptr()));
-    if(reload_module){
-      module->second.dec_ref();
-      modules[module_name] = reload_module;
-      return true;
-    }else
-      reload_module.dec_ref();
-  }
-  handle_py_exception();
-  return false;
-}
-
-pybind11::handle PythonInterpreter::exec(const std::string &method_qualifier){
+pybind11::object PythonInterpreter::exec(const std::string &method_qualifier){
   auto pos = method_qualifier.rfind('.');
   if (pos == std::string::npos)
-    return nullptr;
+    return pybind11::object(nullptr, false);
   auto module_name=method_qualifier.substr(0,pos);
   auto method=method_qualifier.substr(module_name.length()+1,method_qualifier.size());
-  auto module=modules.find(module_name);
-  if (module == modules.end())
-    return nullptr;
-  pybind11::handle func(module->second.attr(method.c_str()));
-  if(func && PyCallable_Check(func.ptr()))
-    try{
-      return func.call();
-    }catch(const std::exception &ex){
-
+  auto module=pybind11::module(PyImport_AddModule(module_name.c_str()), true);
+  if(module){
+    pybind11::handle func(module.attr(method.c_str()));
+    if(func && PyCallable_Check(func.ptr())){
+      try{
+        return func.call();
+      }catch(const std::exception &ex){
+        Terminal::get().print(std::string(ex.what()) + "\n");
+      }
     }
+  }
   handle_py_exception();
-  return nullptr;
-}
-
-template <class... Args>
-pybind11::handle PythonInterpreter::exec(const std::string &method_qualifier,
-                                         Args &&... args){
-  auto pos=method_qualifier.rfind('.');
-  if(pos == std::string::npos)
-    return nullptr;
-  auto module_name=method_qualifier.substr(0,pos);
-  auto method=method_qualifier.substr(module_name.length()+1,method_qualifier.size());
-  auto module=modules.find(module_name);
-  if(module == modules.end())
-    return nullptr;
-
-  auto func=pybind11::handle(module->second.attr(method.c_str()));
-  if(func && PyCallable_Check(func.ptr()))
-    return func.call(std::forward<Args>(args)...);
-  return nullptr;
+  return pybind11::object(nullptr, false);
 }
 
 void PythonInterpreter::handle_py_exception(){

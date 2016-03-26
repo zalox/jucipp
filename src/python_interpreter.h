@@ -11,13 +11,9 @@ public:
   static PythonInterpreter& get();
   void init();
   void append_path(const boost::filesystem::path &path);
-  bool import(const std::string &module_name);
-  template <class... Args>
-  pybind11::handle exec(const std::string &method_qualifier,Args &&... args);
-  pybind11::handle exec(const std::string &method_qualifier);
+  pybind11::object exec(const std::string &method_qualifier);
   bool parse_syntax_error(pybind11::object &py_value,std::string &error_msgs,std::string &error,int &line_number,int &offset);
   void handle_py_exception();
-  std::unordered_map<std::string,pybind11::handle> modules;
 private:
   PythonInterpreter();
   wchar_t *argv;

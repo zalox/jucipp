@@ -29,13 +29,11 @@ PythonInterpreter::PythonInterpreter(){
   boost::filesystem::directory_iterator end_it;
   for(boost::filesystem::directory_iterator it(plugin_path);it!=end_it;it++){
     auto module_name = it->path().stem().generic_string();
-    import(module_name);
+    pybind11::module::import(module_name.c_str());
   }
 }
 
 PythonInterpreter::~PythonInterpreter(){
-  for(auto &module:modules)
-    module.second.dec_ref();
   handle_py_exception();
   if(Py_IsInitialized())
     Py_Finalize();

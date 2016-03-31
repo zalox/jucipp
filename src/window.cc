@@ -253,8 +253,7 @@ void Window::set_menu_actions() {
           while(parent.has_parent_path()) {
             if(parent == Config::get().juci_home_path()/"plugins") {
               auto stem = notebook.get_current_view()->file_path.stem().generic_string();
-              auto module=pybind11::module::import(stem.c_str());
-              if(module){
+              if(PythonInterpreter::get().reload(stem)){
                 Terminal::get().print("Python module "+stem + " has been reloaded \n");
               }
               break;

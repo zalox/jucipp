@@ -6,11 +6,49 @@
 #include "menu.h"
 #include "directories.h"
 #include "window.h"
+#include <pygobject.h>
+#include <pybind11/stl.h>
+
+template <class T> pybind11::object pyobject_from_gobj(T ptr){
+  if(G_IS_OBJECT(ptr)){
+    auto obj=G_OBJECT(ptr);
+    if(obj)
+      return pybind11::object(pygobject_new(obj), true);
+  }
+  return pybind11::object(Py_None, false);
+}
+
+template<class T> pybind11::object pyobject_from_refptr_type(const T &ptr){
+  if(ptr)
+    return pyobject_from_gobj(ptr->gobj());
+  pybind11::object(Py_None, false);
+}
 
 extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
   
   pybind11::module api("libjuci", "Python API for juCi++");
   
+  pygobject_init(-1,-1,-1);
+  
+  api.def_submodule("jgtk")
+    .def("get_current_view",
+      [](){
+        auto view=Notebook::get().get_current_view();
+        if(view){
+          // Hack to force Gtk.TextView to be selected during introspection.
+          auto gtk_buffer=reinterpret_cast<GtkTextBuffer*>(view->get_buffer()->gobj());
+          auto gtk_view=gtk_text_view_new_with_buffer(gtk_buffer); // mem leak?
+          return pyobject_from_gobj(gtk_view);
+        }
+        return pybind11::object(Py_None, false);
+      },pybind11::return_value_policy::reference_internal
+    )
+    .def("get_notebook",
+      [](){
+        auto gtk_notebook=reinterpret_cast<GtkNotebook*>(Notebook::get().gobj());
+        return pyobject_from_gobj(gtk_notebook);
+      }
+    );  
   api.def("get_juci_home",
     [] () {
       return Config::get().juci_home_path().string();
@@ -36,19 +74,27 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
   
   api.def_submodule("directories")
     .def("open",
-      [] (const char *dir) { // ex. libjuci.directories.open("/home/")
+      [] (std::string dir) { // ex. libjuci.directories.open("/home/")
         boost::filesystem::path path(dir);
-        if (boost::filesystem::is_directory(path))
+        if(boost::filesystem::is_directory(path))
           Directories::get().open(path);
+        if(boost::filesystem::is_regular_file(path))
+          Notebook::get().open(path);
       },
       "(void) Opens 'dir' in file tree",
       pybind11::arg("(str) dir")
     )
     .def("update",
-      [] () {
+      [](){
         Directories::get().update(); 
       },
       "(void) Updates the file tree"
+    )
+    .def("get_directories",
+      [](){
+        auto view=reinterpret_cast<GtkTreeView*>(Directories::get().gobj());
+        return pyobject_from_gobj(view);
+      }, pybind11::return_value_policy::reference_internal
     );
   
   api.def_submodule("editor")
@@ -61,174 +107,47 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
         return "";
       },
       "(str) Returns the current open file. If no file is open it returns empty a string")
-    .def("get_text",
-      [] () -> const char * {
-        auto view = Notebook::get().get_current_view();
-        if (view != nullptr) {
-          return view->get_buffer()->get_text().c_str();
-        }
-        return "";
-      },
-      "(str) returns the text in the open editor")
-    .def("get_line",
-    [] () {
-      auto view = Notebook::get().get_current_view();
-      if (view != nullptr) {
-        auto insert_iter = view->get_buffer()->get_insert()->get_iter();
-        Gtk::TextIter start_iter = insert_iter, end_iter = insert_iter;
-        while(!start_iter.starts_line()) {
-          start_iter--;
-        }
-        while(!end_iter.ends_line()){
-          end_iter++;
-        }
-        return view->get_buffer()->get_text(start_iter, end_iter).c_str();
-      }
-      return "";
-    },
-    "(str) returns the line of text the caret is on")
-    .def("get_line_number",
-      [] () {
-        auto view = Notebook::get().get_current_view();
-        if (view != nullptr) {
-          return view->get_source_buffer()->get_insert()->get_iter().get_line();
-        }
-        return -1;
-      },
-      "(int) Returns the line which is being edited, -1 if no file is open or no line is selected")
-    .def("get_line_offset",
-      [] () {
-        auto view = Notebook::get().get_current_view();
-        if (view != nullptr) {
-          return view->get_source_buffer()->get_insert()->get_iter().get_line_offset();
-        }
-        return -1;       
-      },
-      "(int) Returns the number of characters the caret currently is positioned from the previous"
-      " newline, 0 is the first character -1 if no file is open or no line is selected")
-    .def("get_offset",
-      [] () {
-        auto view = Notebook::get().get_current_view();
-        if (view != nullptr) {
-          return view->get_source_buffer()->get_insert()->get_iter().get_offset();
-        }
-        return -1;
-      },
-      "(int) Returns the number of characters the caret currently is positioned from start of the"
-      " file. 0 is the first character. Returns -1 if no lines or files are selected/open")
-    .def("get_text_range",
-      [] (int begin_offset, int end_offset) {
-        auto view = Notebook::get().get_current_view();
-        if (view != nullptr) {
-          auto begin_iter = view->get_buffer()->get_iter_at_offset(begin_offset);
-          auto end_iter = view->get_buffer()->get_iter_at_offset(end_offset);
-          return view->get_source_buffer()->get_text(begin_iter, end_iter).c_str();
-        }
-        return "";
-      },
-      "(str) Returns the text between 'begin_offset' and 'end_offset'. Returns empty"
-      "string if editor isn't focused on a file")
-    .def("scroll_to",
-      [] (int char_offset) {
-        auto view = Notebook::get().get_current_view();
-        if (view != nullptr) {
-          auto scroll_iter = view->get_buffer()->get_iter_at_offset(char_offset);
-          view->scroll_to(scroll_iter);
-        }
-      },
-      "(void) Scrolls cursor to 'char_offset'")
-    .def("insert_at",
-      [](int char_offset, const char* text){
-        auto view = Notebook::get().get_current_view();
-        if (view != nullptr) {
-          auto insert = view->get_buffer()->get_iter_at_offset(char_offset);
-          view->get_buffer()->insert(insert, text);
-        }
-      },
-      "(void) Inserts text at the given offset, caller is responsible to scroll to the insertion")
-    .def("erase_line_range",
-    [](int line_number, int begin_line_offset, int end_line_offset){
-      auto view = Notebook::get().get_current_view();
-      if (view != nullptr) {
-        auto begin_iter = view->get_buffer()->get_iter_at_line_offset(line_number, begin_line_offset);
-        auto end_iter = view->get_buffer()->get_iter_at_line_offset(line_number, end_line_offset);
-        view->get_buffer()->erase(begin_iter, end_iter);
-      }
-    },
-    "(void) Removes text on line 'line_number' between 'begin_line_offset' and 'end_line_offset'")
-    .def("erase",
-    [](int begin_offset, int end_offset){
-      auto view = Notebook::get().get_current_view();
-      if (view != nullptr) {
-        auto begin_iter = view->get_buffer()->get_iter_at_offset(begin_offset);
-        auto end_iter = view->get_buffer()->get_iter_at_offset(end_offset);
-        view->get_buffer()->erase(begin_iter, end_iter);
-      }
-    },
-    "(void) Removes text between the given offsets")
-    .def("insert_at_cursor",
-    [](const char* text){
-      auto view = Notebook::get().get_current_view();
-      if (view != nullptr) {
-        view->get_buffer()->insert_at_cursor(text);
-      }
-    },
-    "(void) Inserts text at the cursor")
     .def("get_tab_char_and_size",
       [](){
         auto view = Notebook::get().get_current_view();
-        if (view != nullptr) {
-          std::stringstream ss;
-          boost::property_tree::ptree ptree;
-          auto pair = view->get_tab_char_and_size();
-          ptree.add("tab_char", pair.first);
-          ptree.add("size", pair.second);
-          boost::property_tree::write_json(ss, ptree);
-          return ss.str();
-        }
-        return std::string();
-      },
-      "(str) Returns a key-value json-object with 'tab_char' and 'size' keys")
-    .def("is_saved",
-      [] () {
-        //TODO finish this     
-      },
-      "(bool) Returns true if the current open file is saved")
-    .def("get_highlighted_word",
-      [] () {
-        auto view = Notebook::get().get_current_view();
-        if (view != nullptr) {
-          if (view->get_token) {
-            auto token = view->get_token();
-            if (token.type != -1) {
-              boost::property_tree::ptree ptree;
-              ptree.add("word", token.spelling);
-              ptree.add("type", token.type);
-              std::stringstream ss;
-              boost::property_tree::json_parser::write_json(ss, ptree);
-              std::string res(ss.str());
-              Terminal::get().print(res);
-              return res;
-            }
-          }
-        }
-        return std::string(""); // const char * not viable
-      },
-      "returns json, empty string on error"
-      "{"
-        "'word': 'word',"
-        "'type': '-1'"
-      "}"
-    )
+        if (view != nullptr)
+          return view->get_tab_char_and_size();
+        return std::make_pair<char,unsigned int>(' ',0);
+      }
+   )
   ;
+  
   api.def_submodule("terminal")
     .def("println",
-      [] (const char *message) {
-        return Terminal::get().print(message);
+      [] (std::string message) {
+        return Terminal::get().print(message + "\n"); //TODO alternative for print, python key word
       },
       "Returns int, Prints 'message' to terminal", //TODO what does the return represent?
-      pybind11::arg("str message, add \n for line break")
+      pybind11::arg("str message")
+    )
+    .def("get_textview",
+      [](){
+        return pyobject_from_gobj(Terminal::get().gobj());
+      }, pybind11::return_value_policy::reference_internal
     )
   ;
+  
+//  api.def("",
+//    [](const char *json){
+//      boost::property_tree::ptree menu_elements;
+//      std::stringstream ss;
+//      ss << json;
+//      try{
+//        boost::property_tree::read_json(ss, menu_elements);
+//      }catch(std::exception &ex){
+//        std::cerr << "Error while parsing json" << std::endl;
+//        return;
+//      }
+//      for(auto &element:menu_elements){
+//
+//      }
+//    }
+//  );
+  
   return api.ptr();
 }

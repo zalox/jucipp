@@ -9,6 +9,18 @@ PythonInterpreter& PythonInterpreter::get(){
   return s;
 }
 
+bool PythonInterpreter::reload(const std::string &module_name){
+  pybind11::module module(PyImport_AddModule(module_name.c_str()), true);
+  if(module){
+    pybind11::module reload(PyImport_ReloadModule(module.ptr()), false);
+    if(reload){
+      return true;
+    }
+  }
+  handle_py_exception();
+  return false;
+}
+
 PythonInterpreter::PythonInterpreter(){
 #ifdef _WIN32
   auto root_path=Config::get().terminal.msys2_mingw_path;
@@ -72,7 +84,7 @@ pybind11::object PythonInterpreter::exec(const std::string &method_qualifier){
   return pybind11::object(nullptr, false);
 }
 
-void PythonInterpreter::handle_py_exception(){
+void PythonInterpreter::handle_py_exception(bool suppress_error_messages){
   pybind11::handle error(PyErr_Occurred());
   if(error){
     PyObject *exception,*value,*traceback;
@@ -81,6 +93,9 @@ void PythonInterpreter::handle_py_exception(){
     pybind11::object py_exception(exception,false);
     pybind11::object py_value(value,false);
     pybind11::object py_traceback(traceback,false);
+    if(suppress_error_messages){
+      return;
+    }
     std::stringstream str;
     if(PyErr_GivenExceptionMatches(py_exception.ptr(),PyExc_SyntaxError)){
       std::string error_msgs,error;

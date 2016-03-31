@@ -12,8 +12,9 @@ public:
   void init();
   void append_path(const boost::filesystem::path &path);
   pybind11::object exec(const std::string &method_qualifier);
+  bool reload(const std::string &module_name);
   bool parse_syntax_error(pybind11::object &py_value,std::string &error_msgs,std::string &error,int &line_number,int &offset);
-  void handle_py_exception();
+  void handle_py_exception(bool suppress_error_messages=false);
 private:
   PythonInterpreter();
   wchar_t *argv;

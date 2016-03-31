@@ -70,6 +70,7 @@ set(global_libraries
   ${Boost_LIBRARIES}
   ${ASPELL_LIBRARIES}
   ${PYTHON_LIBRARIES}
+  ${LIBLLDB_LIBRARIES}
 )
 
 set(application_files
@@ -136,7 +137,7 @@ set(application_files
     ../tiny-process-library/process.cpp)
 
 if(LIBLLDB_FOUND)
-  list(APPEND source_files debug_clang.h debug_clang.cc)
+  list(APPEND application_files debug_clang.h debug_clang.cc)
 endif()
 
 if(MSYS)

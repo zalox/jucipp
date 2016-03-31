@@ -30,19 +30,7 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
   
   pygobject_init(-1,-1,-1);
   
-  api.def_submodule("jgtk")
-    .def("get_current_view",
-      [](){
-        auto view=Notebook::get().get_current_view();
-        if(view){
-          // Hack to force Gtk.TextView to be selected during introspection.
-          auto gtk_buffer=reinterpret_cast<GtkTextBuffer*>(view->get_buffer()->gobj());
-          auto gtk_view=gtk_text_view_new_with_buffer(gtk_buffer); // mem leak?
-          return pyobject_from_gobj(gtk_view);
-        }
-        return pybind11::object(Py_None, false);
-      },pybind11::return_value_policy::reference_internal
-    )
+  api.def_submodule("beta")
     .def("get_notebook",
       [](){
         auto gtk_notebook=reinterpret_cast<GtkNotebook*>(Notebook::get().gobj());
@@ -98,23 +86,36 @@ extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
     );
   
   api.def_submodule("editor")
-    .def("get_file",
-      [] () -> const char * {
+    .def("get_file_name",
+      [] () -> std::string {
         auto view = Notebook::get().get_current_view();
         if (view != nullptr) {
-          return view->file_path.string().c_str();
+          return view->file_path.string();
         }
         return "";
       },
-      "(str) Returns the current open file. If no file is open it returns empty a string")
+      "(str) Returns the current open file. If no file is open it returns empty a string"
+    )
     .def("get_tab_char_and_size",
       [](){
         auto view = Notebook::get().get_current_view();
         if (view != nullptr)
           return view->get_tab_char_and_size();
-        return std::make_pair<char,unsigned int>(' ',0);
+        return std::make_pair<char,unsigned int>(0,0);
       }
-   )
+    )
+    .def("get_current_gtk_text_view",
+      [](){
+        auto view=Notebook::get().get_current_view();
+        if(view){
+          // Hack to force Gtk.TextView to be selected during introspection.
+          auto gtk_buffer=reinterpret_cast<GtkTextBuffer*>(view->get_buffer()->gobj());
+          auto gtk_view=gtk_text_view_new_with_buffer(gtk_buffer); // mem leak?
+          return pyobject_from_gobj(gtk_view);
+        }
+        return pybind11::object(Py_None, false);
+      },pybind11::return_value_policy::reference_internal
+    )
   ;
   
   api.def_submodule("terminal")

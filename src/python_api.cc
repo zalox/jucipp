@@ -7,7 +7,6 @@
 #include "directories.h"
 #include "window.h"
 #include <pygobject.h>
-#include <pybind11/stl.h>
 
 template <class T> pybind11::object pyobject_from_gobj(T ptr){
   if(G_IS_OBJECT(ptr)){

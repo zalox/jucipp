@@ -50,6 +50,8 @@ endif()
 include(FindPkgConfig)
 pkg_check_modules(GTKMM gtkmm-3.0 REQUIRED)
 pkg_check_modules(GTKSVMM gtksourceviewmm-3.0 REQUIRED)
+pkg_check_modules(PYGOBJECT pygobject-2.0 REQUIRED)
+
 
 set(global_includes
    ${Boost_INCLUDE_DIRS}
@@ -61,6 +63,7 @@ set(global_includes
    ${PYTHON_INCLUDE_DIRS}
    ${PYBIND11_INCLUDE_DIR}
    ${TINY_PROCESS_INCLUDE_DIR}
+   ${PYGOBJECT_INCLUDE_DIRS}
 )
 
 set(global_libraries

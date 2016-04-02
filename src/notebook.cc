@@ -25,19 +25,15 @@ namespace sigc {
 #endif
 }
 
-Notebook::TabLabel::TabLabel(const std::string &title) : Gtk::Box(Gtk::ORIENTATION_HORIZONTAL) {
+Notebook::TabLabel::TabLabel(const boost::filesystem::path &path) : Gtk::Box(Gtk::ORIENTATION_HORIZONTAL) {
   set_can_focus(false);
-  label.set_text(title+' ');
+  set_tooltip_text(path.string());
+  label.set_text(path.filename().string()+' ');
   label.set_can_focus(false);
   button.set_image_from_icon_name("window-close-symbolic", Gtk::ICON_SIZE_MENU);
   button.set_can_focus(false);
   button.set_relief(Gtk::ReliefStyle::RELIEF_NONE);
-  
-  //Based on http://www.micahcarrick.com/gtk-notebook-tabs-with-close-button.html
-  auto provider = Gtk::CssProvider::create();
-  provider->load_from_data(".button {border: 0px; outline-width: 0px; margin: 0px; padding: 0px;}");
-  button.get_style_context()->add_provider(provider, GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
-    
+      
   pack_start(label, Gtk::PACK_SHRINK);
   pack_end(button, Gtk::PACK_SHRINK);
   
@@ -48,7 +44,12 @@ Notebook::Notebook() : Gtk::Notebook(), last_index(-1) {
   Gsv::init();
   
   auto provider = Gtk::CssProvider::create();
-  provider->load_from_data(".notebook {padding: 0px; -GtkNotebook-tab-overlap: 0px;} .notebook tab {border-radius: 5px;padding: 4px;}");
+  //GtkNotebook-tab-overlap got removed in gtk 3.20, and border-radius with set_junction_sides stopped working
+#if GTK_VERSION_GE(3, 20)
+    provider->load_from_data("* {padding: 0px; margin: 0px;} tab {padding: 2px;}");
+#else
+    provider->load_from_data("* {padding: 0px; margin: 0px;} .notebook {-GtkNotebook-tab-overlap: 0px;} tab {border-radius: 5px; padding: 3px}");
+#endif
   get_style_context()->add_provider(provider, GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
   get_style_context()->set_junction_sides(Gtk::JunctionSides::JUNCTION_BOTTOM);
   
@@ -141,8 +142,7 @@ void Notebook::open(const boost::filesystem::path &file_path) {
   configure(source_views.size()-1);
   
   //Set up tab label
-  std::string title=file_path.filename().string();
-  tab_labels.emplace_back(new TabLabel(title));
+  tab_labels.emplace_back(new TabLabel(file_path));
   auto source_view=source_views.back();
   tab_labels.back()->button.signal_clicked().connect([this, source_view](){
     for(int c=0;c<size();c++) {
@@ -180,8 +180,11 @@ void Notebook::open(const boost::filesystem::path &file_path) {
         break;
       }
     }
-    if(page!=-1)
-      tab_labels.at(get_index(page))->label.set_text(title);
+    if(page!=-1) {
+      auto &tab_label=tab_labels.at(get_index(page));
+      tab_label->label.set_text(title);
+      tab_label->set_tooltip_text(source_view->file_path.string());
+    }
   });
   
   JDEBUG("end");

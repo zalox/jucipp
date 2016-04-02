@@ -27,7 +27,7 @@ extern "C" PYBIND11_EXPORT PyObject *init_juci_api() {
   
   pybind11::module api("libjuci", "Python API for juCi++");
   
-  pygobject_init(-1,-1,-1);
+  pybind11::module(pygobject_init(-1,-1,-1), false);
   
   api.def_submodule("beta")
     .def("get_notebook",

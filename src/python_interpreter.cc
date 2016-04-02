@@ -21,6 +21,15 @@ bool PythonInterpreter::reload(const std::string &module_name){
   return false;
 }
 
+pybind11::module PythonInterpreter::import(const std::string &module_name){
+  pybind11::module module(PyImport_ImportModule(module_name.c_str()), true);
+  if(module){
+    return module;
+  }
+  handle_py_exception();
+  return pybind11::module(Py_None, false);
+}
+
 PythonInterpreter::PythonInterpreter(){
 #ifdef _WIN32
   auto root_path=Config::get().terminal.msys2_mingw_path;
@@ -41,11 +50,10 @@ PythonInterpreter::PythonInterpreter(){
   PySys_SetArgv(0,&argv);
   boost::filesystem::directory_iterator end_it;
   for(boost::filesystem::directory_iterator it(plugin_path);it!=end_it;it++){
-    auto module_name = it->path().stem().generic_string();
-    if(module_name != "__pycache__")
-      try{
-        pybind11::module::import(module_name.c_str());
-      } catch (const std::exception &ex) { }
+    auto module_name=it->path().stem().generic_string();
+    if(module_name!="__pycache__"){
+      auto module=import(module_name);
+    }
   }
 }
 

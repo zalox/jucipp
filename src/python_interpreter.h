@@ -15,6 +15,7 @@ public:
   bool reload(const std::string &module_name);
   bool parse_syntax_error(pybind11::object &py_value,std::string &error_msgs,std::string &error,int &line_number,int &offset);
   void handle_py_exception(bool suppress_error_messages=false);
+  pybind11::module import(const std::string &module_name);
 private:
   PythonInterpreter();
   wchar_t *argv;

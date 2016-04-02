@@ -356,6 +356,7 @@ void Menu::build(){
       }
     }
     if(menu != nullptr) {
+      PythonInterpreter::get();
       for (auto &plugin : plugin_entries) {
         add_sections(*menu, plugin, accels);
       }

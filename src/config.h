@@ -41,6 +41,11 @@ public:
     bool save_on_compile_or_run;
   };
   
+  class Python {
+  public:
+    std::string site_packages;
+  };
+
   class Source {
   public:
     class DocumentationSearch {
@@ -84,7 +89,8 @@ public:
   Terminal terminal;
   Project project;
   Source source;
-  
+  Python python;
+
   const boost::filesystem::path& juci_home_path() const { return home; }
 
 private:

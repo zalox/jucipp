@@ -107,6 +107,8 @@ void Config::retrieve_config() {
   project.make_command=cfg.get<std::string>("project.make_command");
   project.cmake_command=cfg.get<std::string>("project.cmake_command");
   
+  python.site_packages=cfg.get<std::string>("python.site_packages", "/usr/lib/python3.5/site-packages");
+
   terminal.history_size=cfg.get<int>("terminal_history_size");
   terminal.clang_format_command="clang-format";
 #ifdef __linux

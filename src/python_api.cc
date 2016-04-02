@@ -23,7 +23,7 @@ template<class T> pybind11::object pyobject_from_refptr_type(const T &ptr){
   pybind11::object(Py_None, false);
 }
 
-extern "C" PYBIND_EXPORT PyObject *init_juci_api() {
+extern "C" PYBIND11_EXPORT PyObject *init_juci_api() {
   
   pybind11::module api("libjuci", "Python API for juCi++");
   

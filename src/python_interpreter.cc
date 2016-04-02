@@ -41,7 +41,10 @@ PythonInterpreter::PythonInterpreter(){
   boost::filesystem::directory_iterator end_it;
   for(boost::filesystem::directory_iterator it(plugin_path);it!=end_it;it++){
     auto module_name = it->path().stem().generic_string();
-    pybind11::module::import(module_name.c_str());
+    if(module_name != "__pycache__")
+      try{
+        pybind11::module::import(module_name.c_str());
+      } catch (const std::exception &ex) { }
   }
 }
 
@@ -106,11 +109,11 @@ void PythonInterpreter::handle_py_exception(bool suppress_error_messages){
         str << "An error occured while trying to parse SyntaxError\n";
     }
     else if(PyErr_GivenExceptionMatches(py_exception.ptr(),PyExc_AttributeError))
-      str << "AttributeError: " << py_value.str().operator const char *() << "\n";
+      str << "AttributeError: " << std::string(py_value.str()) << "\n";
     else if(PyErr_GivenExceptionMatches(py_exception.ptr(),PyExc_ImportError))
-      str << "ImportError: " << py_value.str().operator const char *() << "\n";
+      str << "ImportError: " << std::string(py_value.str()) << "\n";
     else
-      str << py_exception.str().operator const char*() << "\n" << py_value.str().operator const char*() << "\n";
+      str << std::string(py_exception.str()) << "\n" << std::string(py_value.str()) << "\n";
     if(Terminal::get().is_visible())
       Terminal::get().print(str.str());
     else

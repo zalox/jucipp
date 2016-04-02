@@ -5,7 +5,6 @@
 #include "menu.h"
 #include "config.h"
 #include "logging.h"
-#include "python_interpreter.h"
 
 int Application::on_command_line(const Glib::RefPtr<Gio::ApplicationCommandLine> &cmd) {
   Glib::set_prgname("juci");
@@ -78,7 +77,6 @@ void Application::on_activate() {
 
 void Application::on_startup() {
   Gtk::Application::on_startup();
-  PythonInterpreter::get();
   Menu::get().build();
   if (!Menu::get().juci_menu || !Menu::get().window_menu) {
     std::cerr << "Menu not found." << std::endl;

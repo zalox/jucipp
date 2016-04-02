@@ -3,6 +3,6 @@
 
 #include <pybind11/pybind11.h>
 
-extern "C" PYBIND_EXPORT PyObject * init_juci_api();
+extern "C" PYBIND11_EXPORT PyObject * init_juci_api();
 
 #endif  // JUCI_PYTHON_API_

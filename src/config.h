@@ -44,6 +44,7 @@ public:
   class Python {
   public:
     std::string site_packages;
+    std::string plugin_directory;
   };
 
   class Source {

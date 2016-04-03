@@ -60,18 +60,12 @@ void Config::load() {
 void Config::find_or_create_config_files() {
   auto config_dir = home/"config";
   auto config_json = config_dir/"config.json";
-  auto toolsplugin_py = home/"plugins"/"toolsplugin.py";
-  auto snippet_py = home/"plugins"/"snippet.py";
 
   boost::filesystem::create_directories(config_dir); // io exp captured by calling method
   boost::filesystem::create_directories(home/"plugins");
 
   if (!boost::filesystem::exists(config_json))
     filesystem::write(config_json, configjson); // vars configjson and pluginspy
-  if (!boost::filesystem::exists(toolsplugin_py))   // live in files.h
-    filesystem::write(toolsplugin_py, toolspluginpy);
-  if (!boost::filesystem::exists(snippet_py))   // live in files.h
-    filesystem::write(snippet_py, snippetpy);
 
   auto juci_style_path = home/"styles";
   boost::filesystem::create_directories(juci_style_path); // io exp captured by calling method
@@ -108,6 +102,7 @@ void Config::retrieve_config() {
   project.cmake_command=cfg.get<std::string>("project.cmake_command");
   
   python.site_packages=cfg.get<std::string>("python.site_packages", "/usr/lib/python3.5/site-packages");
+  python.plugin_directory=cfg.get<std::string>("python.plugin_directory", (home/"plugins").string());
 
   terminal.history_size=cfg.get<int>("terminal_history_size");
   terminal.clang_format_command="clang-format";

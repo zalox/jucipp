@@ -34,8 +34,14 @@ extern "C" PYBIND11_EXPORT PyObject *init_juci_api() {
       [](){
         auto gtk_notebook=reinterpret_cast<GtkNotebook*>(Notebook::get().gobj());
         return pyobject_from_gobj(gtk_notebook);
-      }
-    );  
+      }, pybind11::return_value_policy::reference_internal
+    )
+    .def("get_menu",
+      [](){
+        auto gio_menu = Menu::get().window_menu->gobj();
+        return pyobject_from_gobj(gio_menu);
+      }, pybind11::return_value_policy::reference_internal
+    );
   api.def("get_juci_home",
     [] () {
       return Config::get().juci_home_path().string();
@@ -103,14 +109,12 @@ extern "C" PYBIND11_EXPORT PyObject *init_juci_api() {
         return std::make_pair<char,unsigned int>(0,0);
       }
     )
-    .def("get_current_gtk_text_view",
+    .def("get_current_gtk_text_buffer",
       [](){
         auto view=Notebook::get().get_current_view();
         if(view){
-          // Hack to force Gtk.TextView to be selected during introspection.
           auto gtk_buffer=reinterpret_cast<GtkTextBuffer*>(view->get_buffer()->gobj());
-          auto gtk_view=gtk_text_view_new_with_buffer(gtk_buffer); // mem leak?
-          return pyobject_from_gobj(gtk_view);
+          return pyobject_from_gobj(gtk_buffer);
         }
         return pybind11::object(Py_None, false);
       },pybind11::return_value_policy::reference_internal

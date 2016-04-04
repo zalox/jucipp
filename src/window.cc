@@ -133,6 +133,7 @@ Window::Window() : notebook(Notebook::get()) {
   about.set_license_type(Gtk::License::LICENSE_MIT_X11);
   about.set_transient_for(*this);
   JDEBUG("end");
+  PythonInterpreter::get();
 } // Window constructor
 
 void Window::configure() {

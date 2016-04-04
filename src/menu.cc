@@ -4,7 +4,7 @@
 #include <string>
 #include <boost/property_tree/xml_parser.hpp>
 #include "terminal.h"
-#include "python_interpreter.h"
+// #include "python_interpreter.h"
 
 boost::property_tree::ptree Menu::generate_submenu(const std::string &label){
   boost::property_tree::ptree ptree;
@@ -342,29 +342,29 @@ void Menu::build(){
       "    </submenu>"
       "  </menu>"
       "</interface>";
-    std::stringstream ss;
-    ss << ui_xml;
-    boost::property_tree::ptree ptree;
+  //   std::stringstream ss;
+  //   ss << ui_xml;
+  //   boost::property_tree::ptree ptree;
   try {
-    boost::property_tree::read_xml(ss, ptree, boost::property_tree::xml_parser::trim_whitespace);
-    auto &xml_interface = ptree.get_child("interface");
-    auto menu_range = xml_interface.equal_range("menu");
-    boost::property_tree::ptree * menu = nullptr;
-    for(auto &it = menu_range.first; it!=menu_range.second; it++) {
-      if((it->second.get_child("<xmlattr>.id")).get_value<std::string>() == "window-menu"){
-       menu = &it->second;
-      }
-    }
-    if(menu != nullptr) {
-      PythonInterpreter::get();
-      for (auto &plugin : plugin_entries) {
-        add_sections(*menu, plugin, accels);
-      }
-    }
-    ss = std::stringstream();
-    boost::property_tree::write_xml(ss, ptree, boost::property_tree::xml_parser::trim_whitespace);
-    ui_xml = ss.str();
-    menu = nullptr;
+  //   boost::property_tree::read_xml(ss, ptree, boost::property_tree::xml_parser::trim_whitespace);
+  //   auto &xml_interface = ptree.get_child("interface");
+  //   auto menu_range = xml_interface.equal_range("menu");
+  //   boost::property_tree::ptree * menu = nullptr;
+  //   for(auto &it = menu_range.first; it!=menu_range.second; it++) {
+  //     if((it->second.get_child("<xmlattr>.id")).get_value<std::string>() == "window-menu"){
+  //      menu = &it->second;
+  //     }
+  //   }
+  //   if(menu != nullptr) {
+  //     PythonInterpreter::get();
+  //     for (auto &plugin : plugin_entries) {
+  //       add_sections(*menu, plugin, accels);
+  //     }
+  //   }
+  //   ss = std::stringstream();
+  //   boost::property_tree::write_xml(ss, ptree, boost::property_tree::xml_parser::trim_whitespace);
+  //   ui_xml = ss.str();
+  //   menu = nullptr;
     builder = Gtk::Builder::create_from_string(ui_xml);
     auto object = builder->get_object("juci-menu");
     menu_refrences["juci_menu"] = Glib::RefPtr<Gio::Menu>::cast_dynamic(object);
@@ -390,8 +390,8 @@ void Menu::add_sections(boost::property_tree::ptree &xml_menus, boost::property_
       }
       if(!label.empty() && !action.empty()){
         add_action(action, [action](){
-          auto res = PythonInterpreter::get().exec(action);
-          res.dec_ref();
+//          auto res = PythonInterpreter::get().exec(action);
+//          res.dec_ref();
         });
         auto accel = accels.find(label);
         auto items=xml_menus.equal_range("item");
@@ -410,25 +410,25 @@ void Menu::add_sections(boost::property_tree::ptree &xml_menus, boost::property_
         continue;
       } 
     }else{
-      for(auto &sub_menu_element:sub_menu_elements){
-        if(!label.empty()){
-          auto submenus=xml_menus.equal_range("submenu");
-          boost::property_tree::ptree *xml_submenu=nullptr;
-          for(auto &it=submenus.first;it!=submenus.second;it++){
-            auto submenu_label=(it->second.get_child("attribute")).get_value<std::string>();
-            if(label==submenu_label){
-              xml_submenu=&it->second;
-              break;
-            }
-          }
-          if(xml_submenu==nullptr)
-            xml_submenu=&xml_menus.add_child("submenu", generate_submenu(label));
-          add_sections(*xml_submenu, sub_menu_elements, accels);
-        }else{
-          Terminal::get().print("Couldn't parse json, item has no action or label\n");  
-          continue;
-        }
-      }
+    //   for(auto &sub_menu_element:sub_menu_elements){
+    //     if(!label.empty()){
+    //       auto submenus=xml_menus.equal_range("submenu");
+    //       boost::property_tree::ptree *xml_submenu=nullptr;
+    //       for(auto &it=submenus.first;it!=submenus.second;it++){
+    //         auto submenu_label=(it->second.get_child("attribute")).get_value<std::string>();
+    //         if(label==submenu_label){
+    //           xml_submenu=&it->second;
+    //           break;
+    //         }
+    //       }
+    //       if(xml_submenu==nullptr)
+    //         xml_submenu=&xml_menus.add_child("submenu", generate_submenu(label));
+    //       add_sections(*xml_submenu, sub_menu_elements, accels);
+    //     }else{
+    //       Terminal::get().print("Couldn't parse json, item has no action or label\n");  
+    //       continue;
+    //     }
+    //   }
     }
   }
 }

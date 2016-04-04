@@ -1,32 +1,42 @@
 import libjuci, os, gi
 gi.require_version('Gtk', '3.0')
 
-from gi.repository import Gtk
+from gi.repository import Gtk, Gio
 from libjuci import beta, editor, terminal
 from os import path
 
+def add_menu(position, label, items) :
+    plugin_menu = beta.get_menu_from_name("plugin_menu")
+    if not plugin_menu :
+      libjuci.terminal.println("plugin_menu menu does not exist")
+      return
+    sub_menu = Gio.Menu.new()
+    i = 0
+    app = beta.get_gtk_application()
+    for item in items :
+      sub_menu.insert(i, item["label"], "app."+item["action"])
+      i = i + 1
+      python_action = Gio.SimpleAction.new(item["action"], None)
+      python_action.connect("activate", item["method"])
+      app.add_action(python_action)
+      app.add_accelerator(item["accel"], "app."+item["action"], None)
+      
+    if plugin_menu.get_n_items() >= position :
+      plugin_menu.remove(position)
+      
+    plugin_menu.insert_submenu(position, label, sub_menu)
+  
 def init() :
-  append = """
-[
-    {
-        "label": "_Edit",
-        "menu_elements": [
+  items = [
             {
-                "label":"_Snippet",
-                "menu_elements": [
-                    {
-                        "label":"Insert snippet",
-                        "keybinding":"<primary>space",
-                        "action":"snippet.insert_snippet"
-                    }
-                ]
+              "label": "Insert snippet",
+              "action": "insert_snippet",
+              "accel": "<primary>space",
+              "method": insert_snippet
             }
-        ]
-    }
-]
-"""
-  libjuci.add_menu_element(append)
-
+  ]
+  add_menu(1, "_Snippet", items)  
+  
 def get_ifndef() :
   file_name = editor.get_file_name()
   package, file_name = path.split(file_name)
@@ -98,7 +108,7 @@ def add_indention(text_line, output) :
     res += text_indent + text_line + '\n'
   return res[indent:len(res)]
 
-def insert_snippet() :
+def insert_snippet(action, param) :
   gtk_text_buffer = editor.get_current_gtk_text_buffer()
   if not gtk_text_buffer :
     return
@@ -118,5 +128,5 @@ def insert_snippet() :
   end_iter = gtk_text_buffer.get_iter_at_line_offset(line_number,line_offset)
   gtk_text_buffer.delete(begin_iter, end_iter)
   gtk_text_buffer.insert_at_cursor(snippet, len(snippet))
-
+  
 init()

@@ -60,15 +60,23 @@ void Config::load() {
 void Config::find_or_create_config_files() {
   auto config_dir = home/"config";
   auto config_json = config_dir/"config.json";
-
-  boost::filesystem::create_directories(config_dir); // io exp captured by calling method
-  boost::filesystem::create_directories(home/"plugins");
+  auto plugin_dir = home/"plugins";
+  
+  auto tools_path = plugin_dir/"tools.py";
+  auto snippet_path = plugin_dir/"snippet.py";
+  
+  boost::filesystem::create_directories(config_dir);
+  boost::filesystem::create_directories(plugin_dir);
 
   if (!boost::filesystem::exists(config_json))
-    filesystem::write(config_json, configjson); // vars configjson and pluginspy
-
+    filesystem::write(config_json, configjson);
+  if (!boost::filesystem::exists(tools_path))
+    filesystem::write(tools_path, tools_py);
+  if (!boost::filesystem::exists(snippet_path))
+    filesystem::write(snippet_path, snippet_py);
+      
   auto juci_style_path = home/"styles";
-  boost::filesystem::create_directories(juci_style_path); // io exp captured by calling method
+  boost::filesystem::create_directories(juci_style_path);
 
   juci_style_path/="juci-light.xml";
   if(!boost::filesystem::exists(juci_style_path))

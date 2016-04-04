@@ -101,12 +101,14 @@ void Application::on_activate() {
 void Application::on_startup() {
   Gtk::Application::on_startup();
   Menu::get().build();
-  if (!Menu::get().juci_menu || !Menu::get().window_menu) {
+  auto juci_menu=Menu::get().menu_refrences["juci_menu"];
+  auto window_menu=Menu::get().menu_refrences["window_menu"];
+  if (!juci_menu || !window_menu) {
     std::cerr << "Menu not found." << std::endl;
   }
   else {
-    set_app_menu(Menu::get().juci_menu);
-    set_menubar(Menu::get().window_menu);
+    set_app_menu(juci_menu);
+    set_menubar(window_menu);
   }
 }
 

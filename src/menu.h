@@ -23,9 +23,7 @@ public:
   std::vector<boost::property_tree::ptree> plugin_entries;
   std::unordered_map<std::string, Glib::RefPtr<Gio::SimpleAction> > actions;
   void build();
-  Glib::RefPtr<Gio::Menu> juci_menu;
-  Glib::RefPtr<Gio::Menu> window_menu;
-  
+  std::unordered_map<std::string, Glib::RefPtr<Gio::Menu>> menu_refrences;
 private:
   Glib::RefPtr<Gtk::Builder> builder;
   std::string ui_xml;

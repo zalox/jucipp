@@ -36,11 +36,24 @@ extern "C" PYBIND11_EXPORT PyObject *init_juci_api() {
         return pyobject_from_gobj(gtk_notebook);
       }, pybind11::return_value_policy::reference_internal
     )
-    .def("get_menu",
-      [](){
-        auto gio_menu = Menu::get().window_menu->gobj();
-        return pyobject_from_gobj(gio_menu);
+    .def("get_menu_from_name",
+      [](const std::string &menu_name){
+        auto &menu_refrences=Menu::get().menu_refrences;
+        auto res_menu=menu_refrences.find(menu_name);
+        if(res_menu!=menu_refrences.end()){
+          return pyobject_from_gobj(res_menu->second->gobj());
+        }
+        return pybind11::object(Py_None, false);
       }, pybind11::return_value_policy::reference_internal
+    )
+    .def("get_gtk_application",
+      [](){
+        auto g_application=g_application_get_default();
+        auto gio_application=Glib::wrap(g_application, true);
+        auto application=Glib::RefPtr<Gtk::Application>::cast_static(gio_application);
+        auto gtk_application=reinterpret_cast<GtkApplication*>(application->gobj());
+        return pyobject_from_gobj(gtk_application);
+      }
     );
   api.def("get_juci_home",
     [] () {

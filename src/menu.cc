@@ -367,9 +367,11 @@ void Menu::build(){
     menu = nullptr;
     builder = Gtk::Builder::create_from_string(ui_xml);
     auto object = builder->get_object("juci-menu");
-    juci_menu = Glib::RefPtr<Gio::Menu>::cast_dynamic(object);
+    menu_refrences["juci_menu"] = Glib::RefPtr<Gio::Menu>::cast_dynamic(object);
     object = builder->get_object("window-menu");
-    window_menu = Glib::RefPtr<Gio::Menu>::cast_dynamic(object);
+    menu_refrences["window_menu"] = Glib::RefPtr<Gio::Menu>::cast_dynamic(object);
+    menu_refrences["plugin_menu"] = Gio::Menu::create();
+    menu_refrences["window_menu"]->insert_submenu(5, "_Plugins", menu_refrences["plugin_menu"]);
   } catch (const std::exception &ex) {
     std::cerr << "building menu failed: " << ex.what();
   }

@@ -59,6 +59,8 @@ void Config::find_or_create_config_files() {
 
   if (!boost::filesystem::exists(config_json))
     filesystem::write(config_json, default_config_file);
+  if (!boost::filesystem::exists(plugins_py))
+    filesystem::write(plugins_py, pluginspy);
 
   auto juci_style_path = home/"styles";
   boost::filesystem::create_directories(juci_style_path); // io exp captured by calling method
@@ -87,17 +89,17 @@ void Config::retrieve_config() {
   window.theme_variant=cfg.get<std::string>("gtk_theme.variant");
   window.version = cfg.get<std::string>("version");
   window.default_size = {cfg.get<int>("default_window_size.width"), cfg.get<int>("default_window_size.height")};
-  
+
   project.default_build_path=cfg.get<std::string>("project.default_build_path");
   project.debug_build_path=cfg.get<std::string>("project.debug_build_path");
   project.make_command=cfg.get<std::string>("project.make_command");
   project.cmake_command=cfg.get<std::string>("project.cmake_command");
   project.save_on_compile_or_run=cfg.get<bool>("project.save_on_compile_or_run");
   project.clear_terminal_on_compile=cfg.get<bool>("project.clear_terminal_on_compile");
-  
+
   terminal.history_size=cfg.get<int>("terminal.history_size");
   terminal.font=cfg.get<std::string>("terminal.font");
-  
+
   terminal.clang_format_command="clang-format";
 #ifdef __linux
   if(terminal.clang_format_command=="clang-format" &&

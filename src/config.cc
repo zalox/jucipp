@@ -59,8 +59,6 @@ void Config::find_or_create_config_files() {
 
   if (!boost::filesystem::exists(config_json))
     filesystem::write(config_json, default_config_file);
-  if (!boost::filesystem::exists(plugins_py))
-    filesystem::write(plugins_py, pluginspy);
 
   auto juci_style_path = home/"styles";
   boost::filesystem::create_directories(juci_style_path); // io exp captured by calling method

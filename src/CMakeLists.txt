@@ -13,12 +13,20 @@ if(MSYS)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DMSYS_PROCESS_USE_SH")
 endif()
 
+find_package(PythonLibs 3 REQUIRED)
+pkg_check_modules(PYGOBJECT pygobject-3.0 REQUIRED)
+
+set(PYBIND11_INCLUDE_DIR ../pybind11/include)
+
 set(global_includes
    ${Boost_INCLUDE_DIRS}
    ${GTKMM_INCLUDE_DIRS}
    ${GTKSVMM_INCLUDE_DIRS}
    ${LIBCLANG_INCLUDE_DIRS}
    ${ASPELL_INCLUDE_DIR}
+   ${PYBIND11_INCLUDE_DIR}
+   ${PYTHON_INCLUDE_DIRS}
+   ${PYGOBJECT_INCLUDE_DIRS}
    ../libclangmm/src
    ../tiny-process-library
    .
@@ -31,6 +39,8 @@ set(global_libraries
   ${LIBCLANG_LIBRARIES}
   ${LIBLLDB_LIBRARIES}
   ${ASPELL_LIBRARIES}
+  ${PYTHON_LIBRARIES}
+  ${PYGOBJECT_LIBRARIES}
 )
 
 set(project_files
@@ -44,6 +54,7 @@ set(project_files
     menu.cc
     notebook.cc
     project.cc
+    python_interpreter.cc
     selectiondialog.cc
     terminal.cc
     tooltips.cc
@@ -74,7 +85,7 @@ set(project_shared_files
     ../libclangmm/src/Tokens.cc
     ../libclangmm/src/TranslationUnit.cc
     ../libclangmm/src/Utility.cc
-    
+
     ../tiny-process-library/process.cpp
 )
 

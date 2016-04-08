@@ -33,7 +33,7 @@ Notebook::TabLabel::TabLabel(const boost::filesystem::path &path, std::function<
   button.set_image_from_icon_name("window-close-symbolic", Gtk::ICON_SIZE_MENU);
   button.set_can_focus(false);
   button.set_relief(Gtk::ReliefStyle::RELIEF_NONE);
-  
+
   hbox.pack_start(label, Gtk::PACK_SHRINK);
   hbox.pack_end(button, Gtk::PACK_SHRINK);
   add(hbox);
@@ -46,7 +46,7 @@ Notebook::TabLabel::TabLabel(const boost::filesystem::path &path, std::function<
     }
     return false;
   });
-  
+
   show_all();
 }
 
@@ -77,7 +77,7 @@ Notebook::Notebook() : Gtk::HPaned(), notebooks(2) {
         }
       }
     });
-    
+
     auto provider = Gtk::CssProvider::create();
       //GtkNotebook-tab-overlap got removed in gtk 3.20, but margin works in 3.20
 #if GTK_VERSION_GE(3, 20)
@@ -127,7 +127,7 @@ std::vector<Source::View*> &Notebook::get_views() {
 void Notebook::open(const boost::filesystem::path &file_path, size_t notebook_index) {
   if(notebook_index==1 && !split)
     toggle_split();
-  
+
   for(size_t c=0;c<size();c++) {
     if(file_path==source_views[c]->file_path) {
       auto notebook_page=get_notebook_page(c);
@@ -147,7 +147,7 @@ void Notebook::open(const boost::filesystem::path &file_path, size_t notebook_in
   }
   
   auto last_view=get_current_view();
-  
+
   auto language=Source::guess_language(file_path);
   if(language && (language->get_id()=="chdr" || language->get_id()=="cpphdr" || language->get_id()=="c" || language->get_id()=="cpp" || language->get_id()=="objc"))
     source_views.emplace_back(new Source::ClangView(file_path, language));
@@ -193,7 +193,7 @@ void Notebook::open(const boost::filesystem::path &file_path, size_t notebook_in
     if(index!=static_cast<size_t>(-1))
       close(index);
   }));
-  
+
   //Add star on tab label when the page is not saved:
   source_view->get_buffer()->signal_modified_changed().connect([this, source_view]() {
     std::string title=source_view->file_path.filename().string();
@@ -201,7 +201,7 @@ void Notebook::open(const boost::filesystem::path &file_path, size_t notebook_in
       title+='*';
     else
       title+=' ';
-    
+
     for(size_t c=0;c<size();c++) {
       if(source_views[c]==source_view) {
         auto &tab_label=tab_labels.at(c);
@@ -216,7 +216,7 @@ void Notebook::open(const boost::filesystem::path &file_path, size_t notebook_in
     set_current_view(source_view);
     return false;
   });
-  
+
   if(notebook_index==static_cast<size_t>(-1)) {
     if(!split)
       notebook_index=0;
@@ -228,13 +228,13 @@ void Notebook::open(const boost::filesystem::path &file_path, size_t notebook_in
       notebook_index=get_notebook_page(get_index(last_view)).first;
   }
   auto &notebook=notebooks[notebook_index];
-  
+
   notebook.append_page(*hboxes.back(), *tab_labels.back());
-  
+
   notebook.set_tab_reorderable(*hboxes.back(), true);
   notebook.set_tab_detachable(*hboxes.back(), true);
   show_all_children();
-  
+
   notebook.set_current_page(notebook.get_n_pages()-1);
   last_index=-1;
   if(last_view) {
@@ -243,7 +243,7 @@ void Notebook::open(const boost::filesystem::path &file_path, size_t notebook_in
     if(notebook_page.first==notebook_index)
       last_index=index;
   }
-  
+
   set_focus_child(*source_views.back());
   source_view->get_buffer()->set_modified(false);
   focus_view(source_view);
@@ -338,7 +338,7 @@ bool Notebook::close(size_t index) {
 
     if(on_close_page)
       on_close_page(view);
-    
+
     if(auto clang_view=dynamic_cast<Source::ClangView*>(view))
       clang_view->async_delete();
     else

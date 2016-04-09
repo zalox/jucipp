@@ -2,7 +2,7 @@
 #include "config.h"
 #include "menu.h"
 #include "directories.h"
-//#include "api.h"
+#include "python_interpreter.h"
 #include "dialogs.h"
 #include "filesystem.h"
 #include "project.h"
@@ -30,9 +30,9 @@ Window::Window() {
   set_menu_actions();
   configure();
   activate_menu_items(false);
-  
+
   set_default_size(Config::get().window.default_size.first, Config::get().window.default_size.second);
-  
+
   directories_scrolled_window.add(Directories::get());
   directory_and_notebook_panes.pack1(directories_scrolled_window, Gtk::SHRINK);
   notebook_vbox.pack_start(Notebook::get());
@@ -73,7 +73,7 @@ Window::Window() {
 #else
   add(vpaned);
 #endif
-  
+
   show_all_children();
   Info::get().hide();
 
@@ -112,19 +112,19 @@ Window::Window() {
     }
 
     activate_menu_items();
-    
+
     Directories::get().select(view->file_path);
-    
+
     if(view->full_reparse_needed) {
       if(!view->full_reparse())
         Terminal::get().async_print("Error: failed to reparse "+view->file_path.string()+". Please reopen the file manually.\n", true);
     }
     else if(view->soft_reparse_needed)
       view->soft_reparse();
-    
+
     view->set_status(view->status);
     view->set_info(view->info);
-    
+
 #ifdef JUCI_ENABLE_DEBUG
     if(Project::debugging)
       Project::debug_update_stop();
@@ -145,7 +145,7 @@ Window::Window() {
 #endif
     EntryBox::get().hide();
   };
-  
+
   signal_focus_out_event().connect([](GdkEventFocus *event) {
     if(auto view=Notebook::get().get_current_view()) {
       view->hide_tooltips();
@@ -290,6 +290,21 @@ void Window::set_menu_actions() {
             Notebook::get().get_view(c)->configure();
             Notebook::get().configure(c);
           }
+          if(view->file_path>Config::get().python.plugin_directory){
+            auto stem=view->file_path.stem().string();
+            auto module=PythonInterpreter::get().get_loaded_module(stem);
+            if(module){
+              auto module_new=pybind11::module(PyImport_ReloadModule(module.ptr()),false);
+              if(module_new)
+                Terminal::get().print("Python module "+stem + " has been reloaded \n");
+              else PythonError();
+            }else{
+              PythonError();
+              module=PythonInterpreter::get().import(stem);
+              if(module)
+                Terminal::get().print("Python module "+stem + " has been reloaded \n");
+            }
+          }
         }
       }
     }
@@ -317,10 +332,10 @@ void Window::set_menu_actions() {
     if(auto view=Notebook::get().get_current_view()) {
       auto print_operation=Gtk::PrintOperation::create();
       auto print_compositor=Gsv::PrintCompositor::create(*view);
-      
+
       print_operation->set_job_name(view->file_path.filename().string());
       print_compositor->set_wrap_mode(Gtk::WrapMode::WRAP_WORD_CHAR);
-      
+
       print_operation->signal_begin_print().connect([print_operation, print_compositor](const Glib::RefPtr<Gtk::PrintContext>& print_context) {
         while(!print_compositor->paginate(print_context));
         print_operation->set_n_pages(print_compositor->get_n_pages());
@@ -328,11 +343,11 @@ void Window::set_menu_actions() {
       print_operation->signal_draw_page().connect([print_compositor](const Glib::RefPtr<Gtk::PrintContext>& print_context, int page_nr) {
         print_compositor->draw_page(print_context, page_nr);
       });
-      
+
       print_operation->run(Gtk::PRINT_OPERATION_ACTION_PRINT_DIALOG, *this);
     }
   });
-  
+
   menu.add_action("edit_undo", [this]() {
     if(auto view=Notebook::get().get_current_view()) {
       auto undo_manager = view->get_source_buffer()->get_undo_manager();
@@ -411,7 +426,7 @@ void Window::set_menu_actions() {
   menu.add_action("source_find_documentation", [this]() {
     if(auto view=Notebook::get().get_current_view()) {
       if(view->get_token_data) {
-        auto data=view->get_token_data();        
+        auto data=view->get_token_data();
         if(data.size()>0) {
           auto documentation_search=Config::get().source.documentation_searches.find(data[0]);
           if(documentation_search!=Config::get().source.documentation_searches.end()) {
@@ -512,7 +527,7 @@ void Window::set_menu_actions() {
             row+=std::to_string(usage.first.line+1)+": "+usage.second;
             (*rows)[row]=usage.first;
             view->selection_dialog->add_row(row);
-            
+
             //Set dialog cursor to the last row if the textview cursor is at the same line
             if(current_page &&
                iter.get_line()==static_cast<int>(usage.first.line) && iter.get_line_index()>=static_cast<int>(usage.first.index)) {
@@ -643,7 +658,7 @@ void Window::set_menu_actions() {
       Info::get().print("Compile or debug in progress");
       return;
     }
-    
+
     Project::current=Project::create();
     
     if(Config::get().project.save_on_compile_or_run)
@@ -656,7 +671,7 @@ void Window::set_menu_actions() {
       Info::get().print("Compile or debug in progress");
       return;
     }
-            
+
     Project::current=Project::create();
     
     if(Config::get().project.save_on_compile_or_run)
@@ -720,7 +735,7 @@ void Window::set_menu_actions() {
     }, 50);
     auto entry_it=EntryBox::get().entries.begin();
     entry_it->set_placeholder_text("Debug: Set Run Arguments");
-    
+
     if(auto options=project->debug_get_options()) {
       EntryBox::get().buttons.emplace_back("", [this, options]() {
         options->set_visible(true);
@@ -730,7 +745,7 @@ void Window::set_menu_actions() {
       EntryBox::get().buttons.back().set_tooltip_text("Additional Options");
       options->set_relative_to(EntryBox::get().buttons.back());
     }
-    
+
     EntryBox::get().buttons.emplace_back("Debug: set run arguments", [this, entry_it](){
       entry_it->activate();
     });
@@ -849,7 +864,7 @@ void Window::set_menu_actions() {
       else {
         Notebook::get().status.set_text("");
         Notebook::get().info.set_text("");
-        
+
         activate_menu_items(false);
       }
     }

@@ -50,4 +50,5 @@ See [enhancements](https://github.com/cppit/jucipp/labels/enhancement) for plann
 
 ## Installation
 See [installation guide](http://github.com/cppit/jucipp/blob/master/docs/install.md).
-See [how to build the API doc](docs/apidoc.md)
+
+See [how to build the API doc](docs/apidoc.md).

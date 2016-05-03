@@ -49,5 +49,5 @@ See [enhancements](https://github.com/cppit/jucipp/labels/enhancement) for plann
 * [tiny-process-library](http://github.com/eidheim/tiny-process-library/) (downloaded directly with git --recursive, no need to install)
 
 ## Installation
-See [installation guide](http://github.com/cppit/jucipp/blob/master/docs/install.md).
-See [how to build the API doc](docs/apidoc.md)
+See [installation guide](http://github.com/cppit/jucipp/blob/master/docs/install.md).<br>
+See [how to build the API doc](docs/apidoc.md).

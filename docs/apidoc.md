@@ -2,7 +2,10 @@
 
 ## Prerequisites:
  * doxygen
- * plantuml (install via apt-get or download from http://de.plantuml.com/; if downloaded either copy the jar file to /usr/bin or set the environment variable PLANTUML_PATH to point to the path containing the jar file)
+ * plantuml 
+  * install via apt-get or download from http://de.plantuml.com/
+  * see also http://de.plantuml.com/starting.html
+  * if downloaded either copy the jar file to /usr/bin or set the environment variable PLANTUML_PATH to point to the path containing the jar file)
 
 ## How to build the API doc:
 ```sh

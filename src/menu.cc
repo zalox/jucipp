@@ -86,7 +86,7 @@ const Glib::ustring menu_xml= R"RAW(<interface>
     <section>
       <item>
         <attribute name='label' translatable='yes'>_About</attribute>
-        <attribute name='action'>app.about</attribute>
+        <attribute name='action'>app.debug_asm</attribute>
       </item>
     </section>
     <section>

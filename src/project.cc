@@ -250,6 +250,64 @@ void Project::Clang::compile() {
   });
 }
 
+void Project::Clang::compile_assembly() {
+  auto build_dir=boost::filesystem::canonical(build->get_default_path());
+  if(build_dir.empty() || !build->update_default())
+    return;
+  if(Config::get().project.clear_terminal_on_compile)
+    Terminal::get().clear();
+  compiling=true;
+  Terminal::get().print("Compiling assembly for project "+build->project_path.string()+"\n");
+  
+  if(const auto view = Notebook::get().get_current_view()){
+    boost::filesystem::path path, project_path;
+    for(auto file=view->file_path; file.parent_path() != build->project_path || !file.has_parent_path();){
+      file = file.parent_path();
+      path = path / file.filename();
+    }
+    const auto directory = build_dir/path;
+    const auto asm_target = boost::filesystem::path(view->file_path.filename().string()+".s");
+    const auto command = "make "+asm_target.string();
+    Terminal::get().async_process(command,directory,[this,&directory,&asm_target](int exit_code){
+      compiling=false;
+      if(exit_code == 0){
+      dispatcher.post([this,exit_code,&directory,&asm_target](){
+        auto output_dir = directory/"CMakeFiles";
+        if(boost::filesystem::exists(output_dir)){ // CMake 
+          const auto find_file = []
+            (const boost::filesystem::path &root_dir,const boost::filesystem::path &file_name){
+              const boost::filesystem::recursive_directory_iterator end;
+              boost::filesystem::recursive_directory_iterator it(root_dir);
+              for(;it!=end;it++)
+                if(it->path().filename() == file_name)
+                  return it->path();
+              return boost::filesystem::path();
+            };
+          const auto asm_file = find_file(output_dir,asm_target);
+          std::cout << asm_file.string() << std::endl;
+          if(!asm_file.empty()){
+            for(auto open_views:Notebook::get().get_views()){
+              if(open_views->file_path==asm_file){
+                if(boost::filesystem::exists(open_views->file_path)) {
+                  std::ifstream can_read(asm_file.string());
+                  if(!can_read) {
+                    Terminal::get().print("Error: could not read "+asm_file.string()+"\n", true);
+                    return;
+                  }
+                  can_read.close();
+                }
+                open_views->load();
+                return;
+              }
+            }
+            Notebook::get().open(asm_file,1);
+          }
+        }
+      });
+    }});
+  }
+}
+
 void Project::Clang::compile_and_run() {
   auto default_build_path=build->get_default_path();
   if(default_build_path.empty() || !build->update_default())

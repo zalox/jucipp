@@ -1,11 +1,14 @@
 #include "menu.h"
 #include "config.h"
-#include <string>
 #include <iostream>
 
 const Glib::ustring menu_xml= R"RAW(<interface>
   <menu id='right-click-line-menu'>
     <section>
+      <item>
+        <attribute name='label' translatable='yes'>_Compile _Assembly</attribute>
+        <attribute name='action'>app.debug_asm</attribute>
+      </item>
       <item>
         <attribute name='label' translatable='yes'>_Undo</attribute>
         <attribute name='action'>app.edit_undo</attribute>

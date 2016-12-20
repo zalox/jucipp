@@ -268,10 +268,10 @@ void Project::Clang::compile_assembly() {
     const auto directory = build_dir/path;
     const auto asm_target = boost::filesystem::path(view->file_path.filename().string()+".s");
     const auto command = "make "+asm_target.string();
-    Terminal::get().async_process(command,directory,[this,&directory,&asm_target](int exit_code){
+    Terminal::get().async_process(command,directory,[this,directory,asm_target](int exit_code){
       compiling=false;
       if(exit_code == 0){
-      dispatcher.post([this,exit_code,&directory,&asm_target](){
+      dispatcher.post([exit_code,directory,asm_target](){
         auto output_dir = directory/"CMakeFiles";
         if(boost::filesystem::exists(output_dir)){ // CMake 
           const auto find_file = []

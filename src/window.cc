@@ -936,7 +936,7 @@ void Window::set_menu_actions() {
     
     Project::current->compile_and_run();
   });
-  menu.add_action("debug_asm", [this]() {
+  menu.add_action("compile_asm", [this]() {
     if(Project::compiling || Project::debugging) {
       Info::get().print("Compile or debug in progress");
       return;
@@ -948,6 +948,20 @@ void Window::set_menu_actions() {
       Project::save_files(Project::current->build->project_path);
     
     Project::current->compile_assembly();
+  });
+  
+  menu.add_action("debug_asm", [this]() {
+    if(Project::compiling || Project::debugging) {
+      Info::get().print("Compile or debug in progress");
+      return;
+    }
+    
+    Project::current=Project::create();
+    
+    if(Config::get().project.save_on_compile_or_run)
+      Project::save_files(Project::current->build->project_path);
+    
+    Project::current->debug_assembly();
   });
   menu.add_action("compile", [this]() {
     if(Project::compiling || Project::debugging) {

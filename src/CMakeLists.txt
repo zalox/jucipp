@@ -9,6 +9,7 @@ set(project_files
     directories.cc
     entrybox.cc
     info.cc
+    asm.cc
     juci.cc
     notebook.cc
     project.cc

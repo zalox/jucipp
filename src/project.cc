@@ -10,6 +10,7 @@
 #include "debug_lldb.h"
 #endif
 #include "info.h"
+#include "compile_commands.h"
 
 boost::filesystem::path Project::debug_last_stop_file_path;
 std::unordered_map<std::string, std::string> Project::run_arguments;
@@ -124,6 +125,50 @@ void Project::debug_update_stop() {
       break;
     }
   }
+}
+
+
+namespace Asm {
+   enum class Token {
+     null = 0,
+     location = 1,
+     assembly = 2,
+     label = 3
+   };
+   struct loc {
+     loc(int,int);
+     int count;
+   };
+   typedef std::string assembly;
+   typedef std::string label;
+}
+
+void Project::Clang::debug_assembly() {
+  const auto find_file = []
+    (const boost::filesystem::path &root_dir,const boost::filesystem::path &file_name){
+      const boost::filesystem::recursive_directory_iterator end;
+      boost::filesystem::recursive_directory_iterator it(root_dir);
+      for(;it!=end;it++)
+        if(it->path().filename() == file_name)
+          return it->path();
+      return boost::filesystem::path();
+    };
+    std::vector<Asm::loc> res;
+    
+    auto build_path = build->update_default() ? build->get_default_path() : "";
+    if(!build_path.empty()){
+      if(auto view = Notebook::get().get_current_view()){
+        std::regex source_tag_regex(R"rx(^\s*\.loc\s+(\d+)\s(\d+).*)rx",std::regex::icase);
+        std::smatch match;
+        for(auto &line:filesystem::read_lines(find_file(build_path,view->file_path.filename().string()+".s"))){
+          if(line.empty())
+            continue;
+          if(std::regex_match(line,match,source_tag_regex)){
+            std::cout << line << '\n' << match[1] << '\n' << match[2] << '\n';
+          }
+        }
+      }
+    }
 }
 
 std::unique_ptr<Project::Base> Project::create() {
@@ -265,33 +310,62 @@ void Project::Clang::compile_assembly() {
       file = file.parent_path();
       path = path / file.filename();
     }
-    const auto directory = build_dir/path;
-    const auto asm_target = boost::filesystem::path(view->file_path.filename().string()+".s");
-    const auto command = "make "+asm_target.string();
-    Terminal::get().async_process(command,directory,[this,directory,asm_target](int exit_code){
+    const auto target_absolute = boost::filesystem::path("./jucipp_files")/"assembly"/path;
+    const auto target_dir = build_dir/target_absolute;
+    if(!boost::filesystem::exists(target_dir)){
+      boost::system::error_code ec;
+      boost::filesystem::create_directories(target_dir,ec);
+      if(ec){
+        Terminal::get().print("Couldn't create directory "+target_dir.string()+", "+ec.message());
+        return;
+      }
+    }
+    const auto source_file = view->file_path;
+    const auto asm_target = source_file.filename().string() + ".s";
+    auto commands = CompileCommands(build_dir).commands;
+    std::string cmd;
+    for(auto command:commands){
+      if(command.file == source_file){
+        auto &parameters=command.parameters;
+        for(size_t i = 0; i < parameters.size();i++){
+          auto &param = parameters[i];
+          if(!param.empty()){
+            auto up = param.substr(0,2);
+            if(up[0] != '-')
+              continue;
+            else if(up == "-c")
+              continue;
+            else if(up == "-o")
+              continue;
+            else {
+              if(cmd.empty())
+                cmd = "gcc ";
+              cmd += param += " ";
+            }
+          }
+        }
+      }
+    }
+    
+    if(cmd.empty() || cmd.size() == 4){
+      Terminal::get().print("Couldn't find things");
+      return;
+    }
+    
+    cmd += "-S -g -o " + (target_dir/asm_target).string() + " " + source_file.string();
+    
+    Terminal::get().async_process(cmd,target_dir,[this,target_dir,asm_target](int exit_code){
       compiling=false;
       if(exit_code == 0){
-      dispatcher.post([exit_code,directory,asm_target](){
-        auto output_dir = directory/"CMakeFiles";
-        if(boost::filesystem::exists(output_dir)){ // CMake 
-          const auto find_file = []
-            (const boost::filesystem::path &root_dir,const boost::filesystem::path &file_name){
-              const boost::filesystem::recursive_directory_iterator end;
-              boost::filesystem::recursive_directory_iterator it(root_dir);
-              for(;it!=end;it++)
-                if(it->path().filename() == file_name)
-                  return it->path();
-              return boost::filesystem::path();
-            };
-          const auto asm_file = find_file(output_dir,asm_target);
-          std::cout << asm_file.string() << std::endl;
-          if(!asm_file.empty()){
+        dispatcher.post([exit_code,target_dir,asm_target](){
+          auto target = target_dir/asm_target;
+          if(boost::filesystem::exists(target)){ // CMake 
             for(auto open_views:Notebook::get().get_views()){
-              if(open_views->file_path==asm_file){
+              if(open_views->file_path==target){
                 if(boost::filesystem::exists(open_views->file_path)) {
-                  std::ifstream can_read(asm_file.string());
+                  std::ifstream can_read(target.string());
                   if(!can_read) {
-                    Terminal::get().print("Error: could not read "+asm_file.string()+"\n", true);
+                    Terminal::get().print("Error: could not read "+target.string()+"\n", true);
                     return;
                   }
                   can_read.close();
@@ -300,11 +374,11 @@ void Project::Clang::compile_assembly() {
                 return;
               }
             }
-            Notebook::get().open(asm_file,1);
+            Notebook::get().open(target,1);
           }
-        }
-      });
-    }});
+        });
+      }
+    });
   }
 }
 

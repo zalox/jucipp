@@ -45,6 +45,7 @@ namespace Project {
     virtual std::pair<std::string, std::string> get_run_arguments();
     virtual void compile();
     virtual void compile_assembly() {}
+    virtual void debug_assembly() {}
     virtual void compile_and_run();
     virtual void recreate_build();
     
@@ -89,6 +90,7 @@ namespace Project {
     void compile_assembly() override;
     void compile_and_run() override;
     void recreate_build() override;
+    void debug_assembly() override;
     std::vector<boost::filesystem::path> assembly_targets;
     
 #ifdef JUCI_ENABLE_DEBUG

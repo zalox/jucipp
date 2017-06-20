@@ -15,6 +15,13 @@ public:
     std::unordered_map<std::string, std::string> keys;
   };
   
+  class Python {
+  public:
+    bool enabled;
+    std::string plugin_path;
+    std::string path;
+  };
+  
   class Window {
   public:
     std::string theme_name;
@@ -109,6 +116,7 @@ public:
   Terminal terminal;
   Project project;
   Source source;
+  Python python;
   
   boost::filesystem::path home_path;
   boost::filesystem::path home_juci_path;

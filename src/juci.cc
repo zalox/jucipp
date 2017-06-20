@@ -4,6 +4,7 @@
 #include "directories.h"
 #include "menu.h"
 #include "config.h"
+#include "python_interpreter.h"
 
 int Application::on_command_line(const Glib::RefPtr<Gio::ApplicationCommandLine> &cmd) {
   Glib::set_prgname("juci");
@@ -99,6 +100,8 @@ void Application::on_activate() {
   
   if(!last_current_file.empty())
     Notebook::get().open(last_current_file);
+  if(Config::get().python.enabled)
+    Python::Interpreter::get();
 }
 
 void Application::on_startup() {

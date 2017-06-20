@@ -13,6 +13,7 @@ set(project_files
     notebook.cc
     project.cc
     selection_dialog.cc
+    python_interpreter.cc
     terminal.cc
     tooltips.cc
     window.cc

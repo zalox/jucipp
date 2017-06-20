@@ -226,6 +226,11 @@ void Config::read(const boost::property_tree::ptree &cfg) {
   terminal.show_progress=cfg.get<bool>("terminal.show_progress");
   
   terminal.clang_format_command="clang-format";
+
+  python.plugin_path=cfg.get<std::string>("python.plugin_path",(home_juci_path/"plugins").string());
+  python.path=cfg.get<std::string>("python.site_packages","");
+  python.enabled=cfg.get<bool>("python.enabled",false);
+
 #ifdef __linux
   if(terminal.clang_format_command=="clang-format" &&
      !boost::filesystem::exists("/usr/bin/clang-format") && !boost::filesystem::exists("/usr/local/bin/clang-format")) {

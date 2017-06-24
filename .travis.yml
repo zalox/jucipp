@@ -1,27 +1,21 @@
 sudo: required
 
-# osx_image: xcode7.3
-
 env:
-  - distribution: ubuntu
-  - distribution: fedora
-  - distribution: arch
-  - distribution: debian-testing
-  - distribution: debian
-
-#matrix:
-#  include:
-#    - os: osx
+  - distribution=ubuntu CXX=clang++ CC=clang
+  - distribution=ubuntu CXX=g++ CC=gcc
+  - distribution=fedora CXX=clang++ CC=clang
+  - distribution=fedora CXX=g++ CC=gcc
+  - distribution=arch CXX=clang++ CC=clang
+  - distribution=arch CXX=g++ CC=gcc
+  - distribution=debian-testing CXX=clang++ CC=clang
+  - distribution=debian-testing CXX=g++ CC=gcc
+  - distribution=debian CXX=clang++ CC=clang
+  - distribution=debian CXX=g++ CC=gcc
 
 services:
   - docker
 
-before_install:
-  - ./ci/update_ci.sh #travis_wait 90 ./ci/update_ci.sh
-
 script:
-  - script=compile CXX=clang++ CC=clang ./ci/execute.sh
-  - script=clean ./ci/execute.sh
-  - script=compile CXX=g++ CC=gcc ./ci/execute.sh
+  - script=compile
   - script=static_analysis ./ci/execute.sh
   - script=compile make_command="broadwayd & CTEST_OUTPUT_ON_FAILURE=1 make test" ./ci/execute.sh

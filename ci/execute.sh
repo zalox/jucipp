@@ -7,8 +7,8 @@ function linux () {
     return 0
   fi
   sudo docker run -it \
-    -e "CXX=$CXX" \
-    -e "CC=$CC" \
+    -e "CXX=${CXX}" \
+    -e "CC=${CC}" \
     -e "make_command=$make_command" \
     -e "cmake_command=$cmake_command" \
     -e "distribution=$distribution" \

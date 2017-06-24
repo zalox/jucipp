@@ -1,12 +1,12 @@
 #!/bin/bash
 
 function linux () {
-  sudo apt-get update
-  sudo apt-get purge lxc-docker
-  sudo apt-get install --yes --force-yes -o Dpkg::Options::="--force-confnew" linux-image-extra-$(uname -r) docker-engine
-  sudo service docker stop || exit
-  sudo rm -rf /var/lib/docker || exit
-  sudo service docker start || exit
+#  sudo apt-get update
+#  sudo apt-get purge lxc-docker
+#  sudo apt-get install --yes --force-yes -o Dpkg::Options::="--force-confnew" linux-image-extra-$(uname -r) docker-engine
+#  sudo service docker stop || exit
+#  sudo rm -rf /var/lib/docker || exit
+#  sudo service docker start || exit
 }
 
 function brew_install() {

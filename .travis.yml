@@ -2,24 +2,87 @@ sudo: required
 
 env:
   - distribution: ubuntu
+    jobs:
+      include:
+      - stage: update system
+        script:
+          - ./ci/update_ci.sh
+      - stage: build g++
+        script:
+          - script=compile CXX=clang++ CC=clang ./ci/execute.sh
+      - stage: build clang++
+        script:
+          - script=compile CXX=g++ CC=gcc ./ci/execute.sh
+      - stage: test
+        script:
+          - script=static_analysis ./ci/execute.sh
+          - script=compile make_command="broadwayd & CTEST_OUTPUT_ON_FAILURE=1 make test" ./ci/execute.sh
   - distribution: fedora
+    jobs:
+      include:
+      - stage: update system
+        script:
+          - ./ci/update_ci.sh
+      - stage: build g++
+        script:
+          - script=compile CXX=clang++ CC=clang ./ci/execute.sh
+      - stage: build clang++
+        script:
+          - script=compile CXX=g++ CC=gcc ./ci/execute.sh
+      - stage: test
+        script:
+          - script=static_analysis ./ci/execute.sh
+          - script=compile make_command="broadwayd & CTEST_OUTPUT_ON_FAILURE=1 make test" ./ci/execute.sh
   - distribution: arch
+    jobs:
+      include:
+      - stage: update system
+        script:
+          - ./ci/update_ci.sh
+      - stage: build g++
+        script:
+          - script=compile CXX=clang++ CC=clang ./ci/execute.sh
+      - stage: build clang++
+        script:
+          - script=compile CXX=g++ CC=gcc ./ci/execute.sh
+      - stage: test
+        script:
+          - script=static_analysis ./ci/execute.sh
+          - script=compile make_command="broadwayd & CTEST_OUTPUT_ON_FAILURE=1 make test" ./ci/execute.sh
   - distribution: debian-testing
+    jobs:
+      include:
+      - stage: update system
+        script:
+          - ./ci/update_ci.sh
+      - stage: build g++
+        script:
+          - script=compile CXX=clang++ CC=clang ./ci/execute.sh
+      - stage: build clang++
+        script:
+          - script=compile CXX=g++ CC=gcc ./ci/execute.sh
+      - stage: test
+        script:
+          - script=static_analysis ./ci/execute.sh
+          - script=compile make_command="broadwayd & CTEST_OUTPUT_ON_FAILURE=1 make test" ./ci/execute.sh
   - distribution: debian
-
+    jobs:
+      include:
+      - stage: update system
+        script:
+          - ./ci/update_ci.sh
+      - stage: build g++
+        script:
+          - script=compile CXX=clang++ CC=clang ./ci/execute.sh
+      - stage: build clang++
+        script:
+          - script=compile CXX=g++ CC=gcc ./ci/execute.sh
+      - stage: test
+        script:
+          - script=static_analysis ./ci/execute.sh
+          - script=compile make_command="broadwayd & CTEST_OUTPUT_ON_FAILURE=1 make test" ./ci/execute.sh
 services:
   - docker
 
-jobs:
-  include:
-    - stage: update system
-      script:
-        - ./ci/update_ci.sh
-    - stage: build
-      script:
-        - script=compile CXX=clang++ CC=clang ./ci/execute.sh
-      script:
-        - script=compile CXX=g++ CC=gcc ./ci/execute.sh
-        - script=static_analysis ./ci/execute.sh
-        - script=compile make_command="broadwayd & CTEST_OUTPUT_ON_FAILURE=1 make test" ./ci/execute.sh
+
 

@@ -15,6 +15,9 @@ env:
 services:
   - docker
 
+before_script:
+  - docker pull "cppit/jucipp:${distribution}"
+
 script:
   - script=compile ./ci/execute.sh
   - script=static_analysis ./ci/execute.sh

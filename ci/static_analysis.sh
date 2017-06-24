@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ "${make_command}" == "" ]; then
-  make_command="make -j 2"
+  make_command="make -j 4"
 fi
 
 cd jucipp/build || exit

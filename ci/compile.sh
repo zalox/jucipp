@@ -15,7 +15,7 @@ if [ "${cmake_command}" == "" ]; then
 fi
 
 if [ "${make_command}" == "" ]; then
-  make_command="make -j 2"
+  make_command="make -j 4"
 fi
 
 if [ "${test}" == "1" ]; then

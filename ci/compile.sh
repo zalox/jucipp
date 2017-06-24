@@ -18,6 +18,12 @@ if [ "${make_command}" == "" ]; then
   make_command="make -j 2"
 fi
 
+if [ "${test}" == "1" ]; then
+    if [ "${CC}" == "clang" ]; then
+        exit 0
+    fi
+fi
+
 cd jucipp || echo "Can't cd into jucipp"
 git submodule update --init --recursive # appveyor doesn't checkout recursively
 mkdir -p build && cd build || echo "Error making build directory"

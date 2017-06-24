@@ -12,6 +12,7 @@ function linux () {
     -e "make_command=$make_command" \
     -e "cmake_command=$cmake_command" \
     -e "distribution=$distribution" \
+    -e "test=${test}" \
     -v "$PWD/../:/jucipp" \
     --entrypoint="/jucipp/ci/${script}.sh" \
     "cppit/jucipp:$distribution"

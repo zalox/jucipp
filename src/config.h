@@ -34,7 +34,16 @@ public:
     boost::filesystem::path msys2_mingw_path;
 #endif
   };
-  
+
+  class Python {
+  public:
+    bool enabled;
+    std::string plugin_path;
+    std::string prefix;
+    std::string suffix;
+    std::string path;
+  };
+
   class Project {
   public:
     class CMake {
@@ -110,6 +119,7 @@ public:
   Terminal terminal;
   Project project;
   Source source;
+  Python python;
   
   boost::filesystem::path home_path;
   boost::filesystem::path home_juci_path;

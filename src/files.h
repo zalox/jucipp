@@ -193,6 +193,12 @@ R"RAW(
         "clear_terminal_on_compile": true,
         "ctags_command": "ctags"
     },
+    "python": {
+        "enabled_comment": "enable disable plugin support",
+        "enabled": false,
+        "plugin_path_comment": "<juci_home_path> is available as a variable",
+        "plugin_path": "<juci_home_path>\/plugins"
+    },
     "documentation_searches": {
         "clang": {
             "separator": "::",

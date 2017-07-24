@@ -226,6 +226,28 @@ void Config::read(const boost::property_tree::ptree &cfg) {
   terminal.show_progress=cfg.get<bool>("terminal.show_progress");
   
   terminal.clang_format_command="clang-format";
+
+  const auto &python_cfg = cfg.get_child("python");
+  python.enabled = python_cfg.get<bool>("enabled");
+
+  python.plugin_path = python_cfg.get<std::string>("plugin_path", "");
+  python.path = python_cfg.get<std::string>("path", "");
+
+  const std::string needle = "<juci_home_path>";
+
+  const auto insert_juci_home = [&] (std::string &path) {
+    size_t pos = path.find(needle);
+    if (pos != std::string::npos) {
+      path.replace(pos,needle.length(),home_juci_path.string());
+    }
+    return path;
+  };
+
+  python.plugin_path = insert_juci_home(python.plugin_path);
+  python.path = insert_juci_home(python.path);
+
+  std::cout << python.path << python.plugin_path << std::endl;
+
 #ifdef __linux
   if(terminal.clang_format_command=="clang-format" &&
      !boost::filesystem::exists("/usr/bin/clang-format") && !boost::filesystem::exists("/usr/local/bin/clang-format")) {

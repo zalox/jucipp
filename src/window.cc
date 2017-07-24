@@ -203,6 +203,40 @@ void Window::configure() {
   Directories::get().update();
   if(auto view=Notebook::get().get_current_view())
     Notebook::get().update_status(view);
+  boost::system::error_code ec;
+  if (Config::get().python.enabled && boost::filesystem::exists(Config::get().python.plugin_path, ec)) {
+    for(boost::filesystem::directory_iterator it(Config::get().python.plugin_path), end;it!=end;it++) {
+      auto module_name=it->path().stem().string();
+      if(module_name.empty())
+        continue;
+      const auto is_directory=boost::filesystem::is_directory(it->path());
+      const auto has_py_extension=it->path().extension()==".py";
+      const auto is_pycache=module_name=="__pycache__";
+      if((is_directory && !is_pycache) || has_py_extension) {
+        const auto module_dict = py::import::get_module_dict();
+        if (module_dict.contains(module_name.c_str())) {
+          auto module = py::import::add_module(module_name);
+          try {
+            py::import::reload(module);
+          } catch (pybind11::error_already_set &error) {
+            Terminal::get().print("Error loading plugin `"+module_name+"`:\n");
+            Terminal::get().print(error.what(), true);
+          }
+          continue;
+        }
+        try {
+          pybind11::module::import(module_name.c_str());
+        } catch (const pybind11::error_already_set &error) {
+          Terminal::get().print("Error loading plugin `"+module_name+"`:\n"+error.what()+"\n");
+        }
+      }
+    }
+  } else if (Config::get().python.enabled) {
+    Terminal::get().print("Plugin directory `"+Config::get().python.plugin_path+"` doesn't exist.\n");
+    if (ec) {
+      Terminal::get().print(ec.message() + '\n');
+    }
+  }
 }
 
 void Window::set_menu_actions() {

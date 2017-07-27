@@ -205,6 +205,13 @@ void Window::configure() {
     Notebook::get().update_status(view);
   boost::system::error_code ec;
   if (Config::get().python.enabled && boost::filesystem::exists(Config::get().python.plugin_path, ec)) {
+    auto module_dict = py::import::get_module_dict();
+    auto sys = py::import::add_module("sys");
+    auto sys_path = pybind11::list(sys.attr("path"));
+    if(!sys_path.contains(Config::get().python.plugin_path)) {
+      sys_path.append(Config::get().python.plugin_path);
+      sys.attr("path") = sys_path;
+    }
     for(boost::filesystem::directory_iterator it(Config::get().python.plugin_path), end;it!=end;it++) {
       auto module_name=it->path().stem().string();
       if(module_name.empty())
@@ -213,7 +220,6 @@ void Window::configure() {
       const auto has_py_extension=it->path().extension()==".py";
       const auto is_pycache=module_name=="__pycache__";
       if((is_directory && !is_pycache) || has_py_extension) {
-        const auto module_dict = py::import::get_module_dict();
         if (module_dict.contains(module_name.c_str())) {
           auto module = py::import::add_module(module_name);
           try {

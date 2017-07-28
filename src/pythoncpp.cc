@@ -1,5 +1,5 @@
 #include <iostream>
-#include <python.h>
+#include <pythoncpp.h>
 
 py::Interpreter::Interpreter() {
   if (!Py_IsInitialized()) {

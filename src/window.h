@@ -4,7 +4,7 @@
 #include <gtkmm.h>
 #include <atomic>
 
-#include <python.h>
+#include <pythoncpp.h>
 
 class Window : public Gtk::ApplicationWindow {
   Window();

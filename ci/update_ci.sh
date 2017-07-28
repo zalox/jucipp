@@ -32,7 +32,8 @@ function windows () {
   if [ "$PLATFORM" == "x86" ]; then
     arch=i686
   fi
-  sh -c "pacman -S --noconfirm git \
+  sh -c "pacman -S --noconfirm --needed \
+                               git \
                                make \
                                mingw-w64-${arch}-cmake \
                                mingw-w64-${arch}-toolchain \

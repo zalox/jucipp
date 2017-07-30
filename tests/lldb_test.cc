@@ -3,6 +3,7 @@
 #include <thread>
 #include <boost/filesystem.hpp>
 #include <atomic>
+#include <Python.h>
 
 int main() {
   auto build_path=boost::filesystem::canonical(JUCI_BUILD_PATH);
@@ -19,6 +20,8 @@ int main() {
   std::atomic<bool> exited(false);
   int exit_status;
   std::atomic<int> line_nr(0);
+  PyEval_InitThreads();
+  Py_BEGIN_ALLOW_THREADS
   std::thread debug_thread([&] {
     Debug::LLDB::get().start(exec_path.string(), "", breakpoints, [&](int exit_status_){
       exit_status=exit_status_;
@@ -69,4 +72,5 @@ int main() {
   Debug::LLDB::get().cancel();
   
   debug_thread.join();
+  Py_END_ALLOW_THREADS
 }

@@ -2,10 +2,8 @@
 #include <pythoncpp.h>
 
 py::Interpreter::Interpreter() {
-  if (!Py_IsInitialized()) {
+  if (!Py_IsInitialized())
     Py_Initialize();
-    PyEval_InitThreads();
-  }
 }
 
 py::Interpreter::~Interpreter() {

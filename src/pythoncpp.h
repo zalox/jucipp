@@ -1,6 +1,11 @@
 #ifndef JUCI_PYTHON_INTERPRETER_H_
 #define JUCI_PYTHON_INTERPRETER_H_
 
+#ifdef _WIN32
+#include <cmath>
+#define _hypot hypot
+#endif
+
 #include <pybind11/pybind11.h>
 
 namespace py {

@@ -10,6 +10,7 @@
 #include "info.h"
 #include "ctags.h"
 #include "selection_dialog.h"
+#include <api.h>
 
 Window::Window() {
   set_title("juCi++");
@@ -206,6 +207,9 @@ void Window::configure() {
   boost::system::error_code ec;
   if (Config::get().python.enabled && boost::filesystem::exists(Config::get().python.plugin_path, ec)) {
     auto module_dict = py::import::get_module_dict();
+    if (!module_dict.contains("jucipp")) {
+      module_dict["jucipp"] = api::jucipp::create();
+    }
     auto sys = py::import::add_module("sys");
     auto sys_path = pybind11::list(sys.attr("path"));
     if(!sys_path.contains(Config::get().python.plugin_path)) {

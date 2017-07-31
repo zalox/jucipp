@@ -246,8 +246,6 @@ void Config::read(const boost::property_tree::ptree &cfg) {
   python.plugin_path = insert_juci_home(python.plugin_path);
   python.path = insert_juci_home(python.path);
 
-  std::cout << python.path << python.plugin_path << std::endl;
-
 #ifdef __linux
   if(terminal.clang_format_command=="clang-format" &&
      !boost::filesystem::exists("/usr/bin/clang-format") && !boost::filesystem::exists("/usr/local/bin/clang-format")) {

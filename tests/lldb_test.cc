@@ -3,9 +3,8 @@
 // #include <thread>
 // #include <boost/filesystem.hpp>
 // #include <atomic>
-// #include <Python.h>
 
-// int main() {
+int main() {
 //   auto build_path=boost::filesystem::canonical(JUCI_BUILD_PATH);
 //   auto exec_path=build_path/"tests"/"lldb_test_files"/"lldb_test_executable";
 //   g_assert(boost::filesystem::exists(exec_path));
@@ -20,8 +19,7 @@
 //   std::atomic<bool> exited(false);
 //   int exit_status;
 //   std::atomic<int> line_nr(0);
-//   PyEval_InitThreads();
-//   Py_BEGIN_ALLOW_THREADS
+
 //   std::thread debug_thread([&] {
 //     Debug::LLDB::get().start(exec_path.string(), "", breakpoints, [&](int exit_status_){
 //       exit_status=exit_status_;
@@ -72,5 +70,4 @@
 //   Debug::LLDB::get().cancel();
   
 //   debug_thread.join();
-//   Py_END_ALLOW_THREADS
-// }
+}

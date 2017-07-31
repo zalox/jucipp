@@ -1,8 +1,7 @@
 #ifndef JUCI_API_H_
 #define JUCI_API_H_
 
-#include <pybind11/pybind11.h>
-// auto module = pybind11::reinterpret_steal<pybind11::module>(pygobject_init(-1, -1, -1));
+#include <pythoncpp.h>
 
 namespace api {
   class jucipp {
@@ -11,7 +10,7 @@ namespace api {
    };
 };
 
-
+// auto module = pybind11::reinterpret_steal<pybind11::module>(pygobject_init(-1, -1, -1));
 // pybind11::module api("jucipp", "Python bindings for juCi++");
 //         api.def("get_juci_home", []() { return Config::get().home_juci_path.string(); })
 //             .def("get_plugin_folder", []() { return Config::get().python.plugin_path; });

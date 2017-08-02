@@ -6,14 +6,14 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/functional.h>
-#include <pygobject.h>
 
-inline pybind11::module pyobject_from_gobj(gpointer ptr) {
-  auto obj = G_OBJECT(ptr);
-  if (obj)
-    return pybind11::reinterpret_steal<pybind11::module>(pygobject_new(obj));
-  return pybind11::reinterpret_steal<pybind11::module>(Py_None);
-}
+// #include <pygobject.h>
+// inline pybind11::module pyobject_from_gobj(gpointer ptr) {
+//   auto obj = G_OBJECT(ptr);
+//   if (obj)
+//     return pybind11::reinterpret_steal<pybind11::module>(pygobject_new(obj));
+//   return pybind11::reinterpret_steal<pybind11::module>(Py_None);
+// }
 
 pybind11::module api::jucipp::create() {
   pybind11::module api("jucipp", "Python bindings for juCi++");

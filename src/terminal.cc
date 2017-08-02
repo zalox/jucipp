@@ -144,9 +144,13 @@ void Terminal::async_process(const std::string &command, const boost::filesystem
     }
     stdin_buffer.clear();
     processes_lock.unlock();
-      
-    if(callback)
-      callback(exit_status);
+    try {
+      if (callback) {
+        callback(exit_status);
+      }
+    } catch (const std::exception &exp) {
+      Terminal::get().print(exp.what());
+    }
   });
   async_execute_thread.detach();
 }

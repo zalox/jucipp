@@ -2,11 +2,12 @@
 #include <config.h>
 #include <memory>
 #include <menu.h>
+#include <pybind11/functional.h>
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include <pybind11/functional.h>
 #include <pygobject.h>
+#include <terminal.h>
 
 inline pybind11::module pyobject_from_gobj(gpointer ptr) {
   auto obj = G_OBJECT(ptr);
@@ -30,11 +31,13 @@ pybind11::module api::jucipp::create() {
     return self / str;
   };
 
-  auto Path = pybind11::class_<boost::filesystem::path>(api, "Path")
-                  .def("__repr__", path_to_str)
-                  .def("__str__", path_to_str)
-                  .def("__add__", concat_str, pybind11::is_operator())
-                  .def("__add__", concat_path, pybind11::is_operator());
+  auto api_path =
+      pybind11::class_<boost::filesystem::path>(api, "Path")
+          .def(pybind11::init<const std::string &>())
+          .def("__repr__", path_to_str)
+          .def("__str__", path_to_str)
+          .def("__add__", concat_str, pybind11::is_operator())
+          .def("__add__", concat_path, pybind11::is_operator());
 
   auto api_config =
       pybind11::class_<Config, std::unique_ptr<Config, pybind11::nodelete>>(api, "Config")
@@ -57,11 +60,29 @@ pybind11::module api::jucipp::create() {
 
   auto api_menu =
       pybind11::class_<Menu, std::unique_ptr<Menu, pybind11::nodelete>>(api, "Menu")
-          .def_static("get", &Menu::get, pybind11::return_value_policy::reference)
+          // .def_readwrite("juci_menu", &Menu::juci_menu);
           .def("set_keys", &Menu::set_keys)
           .def("build", &Menu::build)
           .def("add_action", &Menu::add_action)
-          .def_readwrite("juci_menu", &Menu::juci_menu);
+          .def_static("get", &Menu::get, pybind11::return_value_policy::reference);
+
+  auto api_terminal =
+      pybind11::class_<Terminal, std::unique_ptr<Terminal, pybind11::nodelete>>(api, "Terminal")
+          .def("print", &Terminal::print)
+          .def("process",
+               (int (Terminal::*)(const std::string &, const boost::filesystem::path &, bool)) & Terminal::process)
+          .def("async_process", &Terminal::async_process)
+          .def("kill_last_async_process", &Terminal::kill_last_async_process)
+          .def("kill_async_processes", &Terminal::kill_async_processes)
+          .def("clear", &Terminal::clear)
+          .def("configure", &Terminal::configure)
+          .def_static("get", &Terminal::get, pybind11::return_value_policy::reference);
+
+  auto api_terminal_in_progress =
+      pybind11::class_<Terminal::InProgress>(api_terminal, "InProgress")
+          .def(pybind11::init<const std::string &>())
+          .def("done", &Terminal::InProgress::done)
+          .def("cancel", &Terminal::InProgress::cancel);
 
   return api;
 }

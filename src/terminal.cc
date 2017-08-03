@@ -113,6 +113,14 @@ void Terminal::async_process(const std::string &command, const boost::filesystem
   std::thread async_execute_thread([this, command, path, callback, quiet]() {
     std::unique_lock<std::mutex> processes_lock(processes_mutex);
     stdin_buffer.clear();
+    auto cb = [&] (int status) {
+      if(callback)
+        try {
+          callback(status);
+      } catch(const std::exception &exp) {
+        Terminal::get().print(exp.what());
+      }
+    };
     auto process=std::make_shared<TinyProcessLib::Process>(command, path.string(), [this, quiet](const char* bytes, size_t n) {
       if(!quiet)
         async_print(std::string(bytes, n));
@@ -124,8 +132,7 @@ void Terminal::async_process(const std::string &command, const boost::filesystem
     if (pid<=0) {
       processes_lock.unlock();
       async_print("Error: failed to run command: " + command + "\n", true);
-      if(callback)
-        callback(-1);
+      cb(-1);
       return;
     }
     else {
@@ -144,13 +151,7 @@ void Terminal::async_process(const std::string &command, const boost::filesystem
     }
     stdin_buffer.clear();
     processes_lock.unlock();
-    try {
-      if (callback) {
-        callback(exit_status);
-      }
-    } catch (const std::exception &exp) {
-      Terminal::get().print(exp.what());
-    }
+    cb(exit_status);
   });
   async_execute_thread.detach();
 }

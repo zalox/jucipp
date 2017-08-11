@@ -6,17 +6,50 @@
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include <pybind11/functional.h>
 // #include <pygobject.h>
+#include <gtkmm.h>
 #include <terminal.h>
-
-// #include <pygobject.h>
 // inline pybind11::module pyobject_from_gobj(gpointer ptr) {
 //   auto obj = G_OBJECT(ptr);
 //   if (obj)
 //     return pybind11::reinterpret_steal<pybind11::module>(pygobject_new(obj));
 //   return pybind11::reinterpret_steal<pybind11::module>(Py_None);
 // }
+
+
+pybind11::module api::Gtk::create() {
+  pybind11::module api("Gtk", "Python bindings for Gtk");
+  auto gtk_textview =
+      pybind11::class_<::Gtk::TextView, ::Glib::RefPtr<::Gtk::TextView>>(api, "TextView")
+          .def("get_buffer", (::Glib::RefPtr<::Gtk::TextBuffer>(::Gtk::TextView::*)())(&::Gtk::TextView::get_buffer))
+
+      ;
+  auto gtk_textbuffer =
+      pybind11::class_<::Gtk::TextBuffer, ::Glib::RefPtr<::Gtk::TextBuffer>>(api, "TextBuffer")
+          .def("get_text", [](::Gtk::TextBuffer &self, bool include_hidden_chars = true) {
+            return self.get_text(include_hidden_chars);
+          });
+
+  return api;
+};
+
+pybind11::module api::Gio::create() {
+  pybind11::module api("Gio", "Python bindings for Gio");
+  return api;
+};
+
+pybind11::module api::Glib::create() {
+  pybind11::module api("Glib", "Python bindings for Glib");
+  auto gtk_textbuffer =
+      pybind11::class_<::Glib::ustring>(api, "ustring")
+      .def("__str__", [](const ::Glib::ustring &self){ return self.raw(); })
+      
+      ;
+  return api;
+};
+
+// PYBIND11_DECLARE_HOLDER_TYPE(T, Glib::RefPtr<T>);
+
 
 pybind11::module api::jucipp::create() {
   pybind11::module api("jucipp", "Python bindings for juCi++");
@@ -59,18 +92,25 @@ pybind11::module api::jucipp::create() {
       pybind11::class_<Config::Menu>(api_config, "Menu")
           .def_readwrite("keys", &Config::Menu::keys, pybind11::return_value_policy::reference);
 
-
   auto api_menu =
       pybind11::class_<Menu, std::unique_ptr<Menu, pybind11::nodelete>>(api, "Menu")
-          // .def_readwrite("juci_menu", &Menu::juci_menu);
+          // .def_readwrite("juci_menu", &Menu::juci_menu)
+          // .def_readwrite("window_menu", &Menu::window_menu)
+          // .def_readwrite("right_click_selected_menu", &Menu::right_click_selected_menu)
+          // .def_readwrite("right_click_line_menu", &Menu::right_click_line_menu)
           .def("set_keys", &Menu::set_keys)
           .def("build", &Menu::build)
           .def("add_action", &Menu::add_action)
           .def_static("get", &Menu::get, pybind11::return_value_policy::reference);
 
   auto api_terminal =
-      pybind11::class_<Terminal, std::unique_ptr<Terminal, pybind11::nodelete>>(api, "Terminal")
-          .def("print", &Terminal::print)
+      pybind11::class_<
+          Terminal,
+          ::Gtk::TextView,
+          std::unique_ptr<Terminal, pybind11::nodelete>>(api, "Terminal", pybind11::multiple_inheritance())
+          .def("prints", &Terminal::print)
+          .def("async_print", (void (Terminal::*)(const std::string &, bool)) & Terminal::async_print)
+          // .def("print_in_progress",&Terminal::print_in_progress)
           .def("process",
                (int (Terminal::*)(const std::string &, const boost::filesystem::path &, bool)) & Terminal::process)
           .def("async_process", &Terminal::async_process)
@@ -87,4 +127,4 @@ pybind11::module api::jucipp::create() {
           .def("cancel", &Terminal::InProgress::cancel);
 
   return api;
-}
+};

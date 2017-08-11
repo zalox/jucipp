@@ -2,9 +2,34 @@
 #define JUCI_API_H_
 
 #include <pythoncpp.h>
+#include <gtkmm.h>
+
+
+PYBIND11_DECLARE_HOLDER_TYPE(T, Glib::RefPtr<T>)
+
+namespace pybind11 {
+namespace detail {
+template <class T>
+struct holder_helper<::Glib::RefPtr<T>> { // <-- specialization
+  static const T *get(const ::Glib::RefPtr<T> &p) { return p.operator->(); }
+};
+}
+}
 
 namespace api {
   class jucipp {
+    public:
+      pybind11::module static create();
+   };
+   class Gtk {
+    public:
+      pybind11::module static create();
+   };
+   class Glib {
+    public:
+      pybind11::module static create();
+   };
+   class Gio {
     public:
       pybind11::module static create();
    };

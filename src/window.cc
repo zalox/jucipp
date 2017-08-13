@@ -208,9 +208,9 @@ void Window::configure() {
   if (Config::get().python.enabled && boost::filesystem::exists(Config::get().python.plugin_path, ec)) {
     auto module_dict = py::import::get_module_dict();
     if (!module_dict.contains("jucipp")) {
-      module_dict["Glib"] = api::Glib::create();
-      module_dict["Gio"] = api::Gio::create();
-      module_dict["Gtk"] = api::Gtk::create();
+      module_dict["Glib"] = api::glib::create();
+      module_dict["Gio"] = api::gio::create();
+      module_dict["Gtk"] = api::gtk::create();
       module_dict["jucipp"] = api::jucipp::create();
     }
     auto sys = py::import::add_module("sys");

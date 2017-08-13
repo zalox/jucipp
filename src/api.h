@@ -21,15 +21,15 @@ namespace api {
     public:
       pybind11::module static create();
    };
-   class Gtk {
+   class gtk {
     public:
       pybind11::module static create();
    };
-   class Glib {
+   class glib {
     public:
       pybind11::module static create();
    };
-   class Gio {
+   class gio {
     public:
       pybind11::module static create();
    };

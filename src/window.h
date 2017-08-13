@@ -4,6 +4,8 @@
 #include <gtkmm.h>
 #include <atomic>
 
+#include <pythoncpp.h>
+
 class Window : public Gtk::ApplicationWindow {
   Window();
 public:
@@ -11,7 +13,7 @@ public:
     static Window singleton;
     return singleton;
   }
-
+  py::Interpreter python;
 protected:
   bool on_key_press_event(GdkEventKey *event) override;
   bool on_delete_event(GdkEventAny *event) override;

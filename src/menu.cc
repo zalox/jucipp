@@ -474,7 +474,15 @@ void Menu::add_action(const std::string &name, std::function<void()> action) {
   auto gio_application=Glib::wrap(g_application, true);
   auto application=Glib::RefPtr<Gtk::Application>::cast_static(gio_application);
 
-  actions[name]=application->add_action(name, action);
+  const auto exp = [=]() {
+    try {
+      action();
+    } catch (const std::exception &exp) {
+      std::cerr << exp.what() << std::endl;
+    }
+  };
+  
+  actions[name]=application->add_action(name, exp);
 }
 
 void Menu::set_keys() {

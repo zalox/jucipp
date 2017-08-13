@@ -10,6 +10,7 @@
 #include "info.h"
 #include "ctags.h"
 #include "selection_dialog.h"
+#include <api.h>
 
 Window::Window() {
   set_title("juCi++");
@@ -203,6 +204,57 @@ void Window::configure() {
   Directories::get().update();
   if(auto view=Notebook::get().get_current_view())
     Notebook::get().update_status(view);
+  boost::system::error_code ec;
+  if (Config::get().python.enabled && boost::filesystem::exists(Config::get().python.plugin_path, ec)) {
+    auto module_dict = py::import::get_module_dict();
+    if (!module_dict.contains("jucipp")) {
+      module_dict["Glib"] = api::glib::create();
+      module_dict["Gio"] = api::gio::create();
+      module_dict["Gtk"] = api::gtk::create();
+      module_dict["jucipp"] = api::jucipp::create();
+    }
+    auto sys = py::import::add_module("sys");
+    auto sys_path = pybind11::list(sys.attr("path"));
+    if (!sys_path.contains(Config::get().python.plugin_path)) {
+      sys_path.append(Config::get().python.plugin_path);
+      sys.attr("path") = sys_path;
+      auto exc_func = [](pybind11::object type, pybind11::object value, pybind11::object traceback) {
+        const auto obj_to_str = [](const pybind11::object &obj){ return std::string(pybind11::str(obj)); };
+        std::cerr << obj_to_str(type) << "\n" << obj_to_str(value) << "\n";
+      };
+      sys.attr("excepthook") = pybind11::cpp_function(exc_func);
+    }
+    for(boost::filesystem::directory_iterator it(Config::get().python.plugin_path), end;it!=end;it++) {
+      auto module_name=it->path().stem().string();
+      if(module_name.empty())
+        continue;
+      const auto is_directory=boost::filesystem::is_directory(it->path());
+      const auto has_py_extension=it->path().extension()==".py";
+      const auto is_pycache=module_name=="__pycache__";
+      if((is_directory && !is_pycache) || has_py_extension) {
+        if (module_dict.contains(module_name.c_str())) {
+          auto module = py::import::add_module(module_name);
+          try {
+            py::import::reload(module);
+          } catch (pybind11::error_already_set &error) {
+            Terminal::get().print("Error loading plugin `"+module_name+"`:\n");
+            Terminal::get().print(error.what(), true);
+          }
+          continue;
+        }
+        try {
+          pybind11::module::import(module_name.c_str());
+        } catch (const pybind11::error_already_set &error) {
+          Terminal::get().print("Error loading plugin `"+module_name+"`:\n"+error.what()+"\n");
+        }
+      }
+    }
+  } else if (Config::get().python.enabled) {
+    Terminal::get().print("Plugin directory `"+Config::get().python.plugin_path+"` doesn't exist.\n");
+    if (ec) {
+      Terminal::get().print(ec.message() + '\n');
+    }
+  }
 }
 
 void Window::set_menu_actions() {
@@ -216,9 +268,27 @@ void Window::set_menu_actions() {
     Notebook::get().open(Config::get().home_juci_path/"config"/"config.json");
   });
   menu.add_action("quit", [this]() {
-    close();
+    if (auto view = Notebook::get().get_current_view()) {
+      auto module_dict = py::import::get_module_dict();
+      auto module_name = view->file_path.filename().stem().string();
+      if (module_dict.contains(module_name.c_str())) {
+        auto module = py::import::add_module(module_name);
+        try {
+          py::import::reload(module);
+        } catch (const pybind11::error_already_set &error) {
+          Terminal::get().print("Error reloading plugin `" + module_name + "`:\n");
+          Terminal::get().print(error.what() + std::string("\n"), true);
+        }
+      }
+      try {
+        pybind11::module::import(module_name.c_str());
+      } catch (const pybind11::error_already_set &error) {
+        Terminal::get().print("Error importing plugin `" + module_name + "`:\n");
+        Terminal::get().print(error.what() + std::string("\n"), true);
+      }
+    }
   });
-  
+
   menu.add_action("new_file", [this]() {
     boost::filesystem::path path = Dialog::new_file(Notebook::get().get_current_folder());
     if(path!="") {
